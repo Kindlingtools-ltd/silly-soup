@@ -168,6 +168,18 @@ class _TopBar extends StatelessWidget {
             icon: const Icon(Icons.music_note_rounded),
           ),
         ),
+        // Every clip is interruptible. A child who wants to carry on should
+        // never have to sit through the chef finishing a sentence.
+        Semantics(
+          button: true,
+          label: 'Stop the sound',
+          child: IconButton(
+            iconSize: 34 * scale,
+            color: SoupColours.textSecondary,
+            onPressed: app.audio.stop,
+            icon: const Icon(Icons.volume_off_rounded),
+          ),
+        ),
       ],
     );
   }

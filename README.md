@@ -26,7 +26,7 @@ Letters are introduced in **Phase 2**, not Phase One, so the app is sounds and p
 - **The Silly Soup Song** — original words to the public-domain tune of *Pop Goes the Weasel*, replaceable with an adult's own recording
 - **Adult area** — behind a three-second press-and-hold: sounds and their order, pantry size, Phase 2 letters, drag vs tap, mirror, volume, reduced motion, whiteboard mode
 - **Whiteboard mode** — extra-large and adult-paced, for group sessions
-- **Works offline** — installable PWA, no network calls at runtime
+- **Works offline** — installable PWA with its own service worker, no network calls at runtime
 
 ## Requirements
 
@@ -63,7 +63,7 @@ Worth checking on the device itself:
 6. **Mirror mode** — turn it on in the adult area, then open "Watch my mouth". The browser asks for camera permission; the view is live only and there is no capture button.
 7. **Reduced motion** — turn on the device's reduce-motion setting, or the toggle in the adult area, and check the soup stops bobbing.
 8. **Whiteboard mode** — everything scales up and the chef waits for you instead of moving on by itself.
-9. **Offline** — load it once, turn off wi-fi, reload. It still runs.
+9. **Offline** — load it once, turn off wi-fi, reload. It still runs. One online visit is enough: the page tells the service worker which files this browser actually downloaded, and those get cached.
 
 > Camera access needs a secure context. On a tablet that means HTTPS or `localhost`; a plain `http://<ip>` page will not be offered the camera. Test mirror mode against <https://silly-soup.kindlingtools.com> rather than a local address.
 
@@ -156,6 +156,18 @@ Sounds carry `articulation` (`continuant` or `stop`), which is what decides whet
 - **Stage 1 (this release)** — the core Silly Soup game, "Watch my mouth", the song, and the adult area.
 - **Stage 2** — adult-authored sounds and words (record a sound, add a word with a photo or emoji, record the word), hide/reorder/edit, live preview, IndexedDB storage, and sound pack export/import. The data model, merge behaviour and pack validation are already in place and tested; what is missing is the UI and the IndexedDB-backed store behind `CustomContentStore`. The "Look, listen and note" observation panel lands here too.
 - **Stage 3** — the extension modes: odd-one-out soup, "What's in the soup?", and rhyming soup. These are **not** part of the original activity and are labelled as extensions in the adult area.
+
+## Offline and the service worker
+
+Flutter's own service worker is now a no-op that unregisters itself, so the app ships its own — `web/sw.js`, registered from `web/flutter_bootstrap.js`:
+
+- the page is **network-first**, so a new deploy is picked up as soon as there is a network, and falls back to the cached shell when there is not;
+- everything else is **cache-first**, because the cache name carries the build id and cannot serve a stale asset against a fresh `index.html`;
+- after the app boots, the page posts the list of resources it actually loaded to the worker, which caches them. Guessing that list at build time is not possible — which of the 48&nbsp;MB of renderer variants a browser picks depends on the browser.
+
+CI stamps the commit SHA into `sw.js` after the build. Without that step the cache name never changes and a deploy can pair a new `index.html` with an old `main.dart.wasm`.
+
+Verified in Chromium: load, go offline, reload, app still boots.
 
 ## Deployment
 
