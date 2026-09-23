@@ -12,13 +12,23 @@ class ChefPanel extends StatelessWidget {
     required this.line,
     this.scale = 1.0,
     this.isBusy = false,
+    this.maxHeight,
   });
   final String line;
   final double scale;
   final bool isBusy;
 
+  /// Ceiling on the speech bubble, so a long recital of a very full soup
+  /// cannot squeeze the pot and the shelf off a short screen. The bubble
+  /// scrolls inside it rather than growing.
+  final double? maxHeight;
+
   @override
   Widget build(BuildContext context) {
+    // The chef shrinks freely; the words do not. Below about 15 points this
+    // stops being something an adult can read across a table.
+    final fontSize = 14 + 4 * scale;
+
     return Row(
       children: [
         AnimatedScale(
@@ -32,19 +42,24 @@ class ChefPanel extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
             child: Container(
               key: ValueKey(line),
+              constraints: BoxConstraints(
+                maxHeight: maxHeight ?? double.infinity,
+              ),
               padding: EdgeInsets.symmetric(
-                horizontal: 20 * scale,
-                vertical: 14 * scale,
+                horizontal: 16 * scale,
+                vertical: 12 * scale,
               ),
               decoration: BoxDecoration(
                 color: SoupColours.surface,
                 borderRadius: BorderRadius.circular(20 * scale),
                 border: Border.all(color: SoupColours.border, width: 2),
               ),
-              child: Text(
-                line,
-                style: SoupTypography.chefSpeech(context)
-                    .copyWith(fontSize: 18 * scale),
+              child: SingleChildScrollView(
+                child: Text(
+                  line,
+                  style: SoupTypography.chefSpeech(context)
+                      .copyWith(fontSize: fontSize),
+                ),
               ),
             ),
           ),
