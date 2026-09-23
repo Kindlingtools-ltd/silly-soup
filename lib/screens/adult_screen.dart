@@ -252,9 +252,13 @@ class _SoundRow extends StatelessWidget {
 
     return ListTile(
       leading: SizedBox(
-        width: 56,
+        // Wide enough for a bounced stop written out in full: "b-b-b" wrapped
+        // and had its second line clipped at 56.
+        width: 92,
         child: Text(
           sound.spokenPureSound,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: SoupTypography.heading(context).copyWith(fontSize: 20),
         ),
       ),

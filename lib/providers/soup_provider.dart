@@ -27,6 +27,7 @@ class SoupProvider extends ChangeNotifier {
   bool _isChefBusy = false;
   int _generation = 0;
   int _praiseCounter = 0;
+  int _chefItemsShown = 0;
 
   SoupSession? get session => _session;
 
@@ -37,6 +38,10 @@ class SoupProvider extends ChangeNotifier {
 
   /// True while the chef is modelling, so the shelf stays out of reach.
   bool get isChefBusy => _isChefBusy;
+
+  /// How much of the chef's soup has gone in so far, so the pot can fill up
+  /// in step with what the chef is saying.
+  int get chefItemsShown => _chefItemsShown;
 
   bool get hasSession => _session != null;
 
@@ -53,6 +58,7 @@ class SoupProvider extends ChangeNotifier {
     required AppSettings settings,
   }) {
     final generation = ++_generation;
+    _audio.interrupt();
     final candidates = bank.wordsFor(sound.id);
 
     _session = SoupSession(
@@ -72,6 +78,7 @@ class SoupProvider extends ChangeNotifier {
     _chefLine = 'My sound today is ${RecitalService.pureSound(sound)}.';
     _isChefBusy = false;
     _isStirring = false;
+    _chefItemsShown = 0;
     notifyListeners();
 
     _speakSound(generation, sound);
@@ -99,9 +106,13 @@ class SoupProvider extends ChangeNotifier {
     if (!_isCurrent(generation)) return;
 
     for (final word in session.chefSoup) {
-      await _pause(const Duration(milliseconds: 900));
+      await _pause(const Duration(milliseconds: 700));
       if (!_isCurrent(generation)) return;
+      // The item goes in as it is named, so the child sees the pot fill up
+      // one thing at a time. Showing all three at once demonstrates nothing.
+      _chefItemsShown++;
       _setChefLine(RecitalService.commentateOnItem(word, sound));
+      notifyListeners();
       await _audio.playEmphasisedWord(word, sound);
       if (!_isCurrent(generation)) return;
       await _stir(generation);
@@ -116,6 +127,12 @@ class SoupProvider extends ChangeNotifier {
 
     await _pause(const Duration(milliseconds: 900));
     if (!_isCurrent(generation)) return;
+    // On a whiteboard the adult decides when to hand over, using "My turn!".
+    if (adultPaced) {
+      _isChefBusy = false;
+      notifyListeners();
+      return;
+    }
     beginChildsTurn();
   }
 
@@ -137,6 +154,8 @@ class SoupProvider extends ChangeNotifier {
     final generation = _generation;
     final sound = session.sound;
 
+    // The child's tap takes over from whatever the chef was mid-way through.
+    await _audio.interrupt();
     final next = session.addToPot(word);
     _update(next);
     _setChefLine(RecitalService.commentateOnItem(word, sound));
@@ -200,6 +219,7 @@ class SoupProvider extends ChangeNotifier {
     _chefLine = '';
     _isChefBusy = false;
     _isStirring = false;
+    _chefItemsShown = 0;
     _audio.stop();
     notifyListeners();
   }
@@ -229,9 +249,13 @@ class SoupProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Wait, unless the adult is driving the session by hand.
+  /// A beat between steps.
+  ///
+  /// Adult-paced sessions keep these: skipping them made whiteboard mode
+  /// *faster* than a normal one, which is the opposite of what it is for.
+  /// What adult pacing changes is that the chef stops at the end of its turn
+  /// and waits to be asked, rather than moving on by itself.
   Future<void> _pause(Duration duration) {
-    if (adultPaced) return Future<void>.value();
     final scaled = reducedMotion
         ? Duration(milliseconds: (duration.inMilliseconds * 0.4).round())
         : duration;

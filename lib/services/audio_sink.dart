@@ -54,6 +54,12 @@ class PlatformAudioSink implements AudioSink {
           ? assetPath.substring('assets/'.length)
           : assetPath;
       await _player.play(AssetSource(source), volume: volume);
+      // play() returns when playback *starts*. The chef has to wait until the
+      // clip has actually finished, or the next line talks over this one.
+      await _player.onPlayerComplete.first.timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {},
+      );
       return true;
     } catch (error) {
       debugPrint('Silly Soup: could not play $assetPath ($error)');
@@ -66,6 +72,10 @@ class PlatformAudioSink implements AudioSink {
     if (text.trim().isEmpty) return;
     try {
       if (!_ttsReady) {
+        // Without this, speak() returns the moment speech *starts*. Every
+        // caller then moves on, and the next line's stop() cuts this one off
+        // mid-word — which is what made the chef unlistenable.
+        await _tts.awaitSpeakCompletion(true);
         await _tts.setLanguage('en-GB');
         // Slower than the default: these are three- to five-year-olds, and
         // the whole point is that they can hear the sound clearly.

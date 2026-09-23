@@ -288,7 +288,9 @@ class _Pot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isChefsPot = session.stage == SoupStage.chefModelling;
-    final contents = isChefsPot ? session.chefSoup : session.pot;
+    final contents = isChefsPot
+        ? session.chefSoup.take(soup.chefItemsShown).toList()
+        : session.pot;
     final canDrop =
         session.stage == SoupStage.childsTurn &&
         settings.inputMode == InputMode.dragAndTap;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:silly_soup/models/models.dart';
 import 'package:silly_soup/services/services.dart';
@@ -117,6 +119,52 @@ void main() {
     expect(sink.spokenText, ['hello']);
   });
 
+  group('a device with no voice', () {
+    test('does not leave the chef waiting forever', () async {
+      final sink = SilentSink();
+      final audio = AudioService(sink: sink);
+
+      // The bug this guards: awaiting speech completion froze the game on a
+      // device that never reports completion, because it never speaks.
+      await audio
+          .speak('hello')
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => fail('speak() never returned'),
+          );
+
+      expect(sink.stopCount, greaterThan(0));
+    });
+
+    test('stops waiting once it is clear nothing is being spoken', () async {
+      final audio = AudioService(sink: SilentSink());
+
+      expect(audio.voiceIsSilent, isFalse);
+
+      final started = DateTime.now();
+      for (var i = 0; i < 5; i++) {
+        await audio.speak('In goes a b-b-banana!');
+      }
+      final elapsed = DateTime.now().difference(started);
+
+      expect(audio.voiceIsSilent, isTrue);
+      // Five full budgets would be about half a minute. A child watching a
+      // silent tablet should not wait that long for the chef to get going.
+      expect(elapsed.inSeconds, lessThan(15));
+    });
+
+    test('the budget scales with how much there is to say', () {
+      final short = AudioService.budgetFor('sss');
+      final long = AudioService.budgetFor(
+        'In goes a b-b-banana… a b-b-bee… a b-b-bug… a b-b-ball…',
+      );
+
+      expect(long, greaterThan(short));
+      expect(short.inSeconds, greaterThanOrEqualTo(2));
+      expect(long.inSeconds, lessThanOrEqualTo(25));
+    });
+  });
+
   test('stop reaches the sink so a child never has to wait', () async {
     final sink = RecordingAudioSink();
 
@@ -124,4 +172,24 @@ void main() {
 
     expect(sink.stopCount, 1);
   });
+}
+
+/// A sink that accepts an utterance and never finishes it — a device with no
+/// voice installed, or a browser refusing to speak before the first tap.
+class SilentSink implements AudioSink {
+  int stopCount = 0;
+
+  @override
+  Future<bool> playAsset(String assetPath, {required double volume}) async =>
+      false;
+
+  @override
+  Future<void> speak(String text, {required double volume}) =>
+      Completer<void>().future;
+
+  @override
+  Future<void> stop() async => stopCount++;
+
+  @override
+  Future<void> dispose() async {}
 }
