@@ -1,0 +1,4 @@
+# Flutter web is a single-page app: any path the bundle does not contain is
+# still the app, not a 404. Only applies when no real asset matches, so
+# /sw.js and /main.dart.wasm are unaffected.
+/*  /index.html  200

@@ -173,9 +173,9 @@ Verified in Chromium: load, go offline, reload, app still boots.
 
 **Live at <https://silly-soup.kindlingtools.com>.**
 
-Pushes to `master` build the WASM web bundle and deploy `build/web` as the static assets of the Cloudflare **Worker** named `silly-soup`, which is what the custom domain is bound to. See `wrangler.toml`.
+Pushes to `master` build the WASM web bundle and deploy it to the Cloudflare **Pages** project `silly-soup`, which is what `silly-soup.kindlingtools.com` is a custom domain on — the same arrangement as `ks1-phonics` and `ks1-mtc`.
 
-This differs from `ks1-phonics` and `ks1-mtc`, which deploy to Cloudflare **Pages**. A Pages project and a Worker are separate resources even when they share a name, so deploying to Pages here would publish to an address the domain does not point at.
+A Cloudflare Pages project and a Cloudflare Worker are separate resources even when they share a name. If the domain is ever moved onto a Worker, this has to move with it, or deploys will keep publishing to an address nothing points at. `web/_redirects` keeps deep links working, since Pages would otherwise 404 on any path that is not a real file.
 
 The deploy step reads two repository secrets, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; if either is missing it skips with a warning rather than failing the build.
 

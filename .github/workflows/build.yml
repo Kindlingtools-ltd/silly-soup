@@ -151,9 +151,10 @@ jobs:
             echo "::warning title=Deploy skipped::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to publish the app."
             exit 0
           fi
-          # Deploys build/web as the assets of the `silly-soup` Worker, which
-          # is what silly-soup.kindlingtools.com is bound to. See wrangler.toml.
-          wrangler deploy
+          # silly-soup.kindlingtools.com is a custom domain on the Pages
+          # project, not on a Worker of the same name. See wrangler.toml.
+          wrangler pages project create silly-soup --production-branch=master || true
+          wrangler pages deploy build/web --project-name=silly-soup --branch=master --commit-dirty=true
 
   build-android:
     name: Build Android
