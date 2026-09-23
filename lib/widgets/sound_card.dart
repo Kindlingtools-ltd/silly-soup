@@ -49,17 +49,15 @@ class SoundCard extends StatelessWidget {
         children: [
           Text(
             sound.spokenPureSound,
-            style: SoupTypography.soundDisplay(
-              context,
-            ).copyWith(fontSize: 48 * scale, color: SoupColours.primary),
+            style: SoupTypography.soundDisplay(context)
+                .copyWith(fontSize: 48 * scale, color: SoupColours.primary),
           ),
           if (showLetter) ...[
             SizedBox(height: 8 * scale),
             Text(
               sound.grapheme,
-              style: SoupTypography.heading(
-                context,
-              ).copyWith(fontSize: 32 * scale),
+              style: SoupTypography.heading(context)
+                  .copyWith(fontSize: 32 * scale),
             ),
           ],
         ],

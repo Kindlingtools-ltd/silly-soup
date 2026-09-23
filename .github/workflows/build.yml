@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_VERSION: '3.38.7'
+  FLUTTER_VERSION: '3.47.5'
 
 jobs:
   lint:
@@ -135,21 +135,19 @@ jobs:
         if: github.event_name != 'pull_request'
         run: bun add -g wrangler
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare
         if: github.event_name != 'pull_request'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::warning title=Deploy skipped::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to publish to Cloudflare Pages."
+            echo "::warning title=Deploy skipped::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to publish the app."
             exit 0
           fi
-          wrangler pages project create silly-soup --production-branch=master || true
-          # --commit-dirty: the runner's working tree is not pristine after
-          # setup, and wrangler warns about it on every deploy. The upload is
-          # build/web either way.
-          wrangler pages deploy build/web --project-name=silly-soup --branch=master --commit-dirty=true
+          # Deploys build/web as the assets of the `silly-soup` Worker, which
+          # is what silly-soup.kindlingtools.com is bound to. See wrangler.toml.
+          wrangler deploy
 
   build-android:
     name: Build Android

@@ -22,6 +22,11 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "**/generated_plugin_registrant.dart"
+    # Generated and platform scaffolding, added by `flutter pub upgrade`.
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
 
 linter:
   rules:
@@ -55,9 +60,5 @@ linter:
     - require_trailing_commas
     - sort_constructors_first
     - unawaited_futures
-    - unnecessary_await_in_return
     - unnecessary_lambdas
     - unnecessary_parenthesis
-
-    # Documentation — public API of the game rules should say what it does
-    - package_api_docs

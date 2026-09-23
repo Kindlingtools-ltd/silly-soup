@@ -83,9 +83,8 @@ class _MouthScreenState extends State<MouthScreen> {
                 Text(
                   widget.sound.mouthTip,
                   textAlign: TextAlign.center,
-                  style: SoupTypography.chefSpeech(
-                    context,
-                  ).copyWith(fontSize: 20 * scale),
+                  style: SoupTypography.chefSpeech(context)
+                      .copyWith(fontSize: 20 * scale),
                 ),
               SizedBox(height: 20 * scale),
               SoupButton(

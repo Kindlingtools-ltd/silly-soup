@@ -89,9 +89,8 @@ class _Tile extends StatelessWidget {
             SizedBox(height: size * 0.04),
             Text(
               letter!,
-              style: SoupTypography.heading(
-                context,
-              ).copyWith(fontSize: size * 0.2),
+              style: SoupTypography.heading(context)
+                  .copyWith(fontSize: size * 0.2),
             ),
           ],
         ],

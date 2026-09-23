@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'kindling_theme_config.dart';
 
 /// Kindling Tools colour palette.

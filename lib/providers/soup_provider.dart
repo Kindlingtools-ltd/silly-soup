@@ -12,6 +12,9 @@ import '../services/services.dart';
 /// must not be talked at by a chef from the soup before.
 class SoupProvider extends ChangeNotifier {
   SoupProvider({required AudioService audio, Random? random})
+    // The lint wants `this._audio`, but Dart does not allow a private name as
+    // a named parameter, so the field is assigned the long way round.
+    // ignore: prefer_initializing_formals
     : _audio = audio,
       _random = random ?? Random();
 

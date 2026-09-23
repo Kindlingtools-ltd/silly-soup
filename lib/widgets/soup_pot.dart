@@ -111,9 +111,8 @@ class _SoupPotState extends State<SoupPot> with SingleTickerProviderStateMixin {
                       ),
                       child: Text(
                         widget.letter!,
-                        style: SoupTypography.heading(
-                          context,
-                        ).copyWith(fontSize: widget.size * 0.12),
+                        style: SoupTypography.heading(context)
+                            .copyWith(fontSize: widget.size * 0.12),
                       ),
                     ),
                   ),

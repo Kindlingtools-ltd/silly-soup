@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.7
+  sdk: ^3.13.4
 
 dependencies:
   flutter:
@@ -27,13 +27,13 @@ dependencies:
   flutter_svg: ^2.3.0
 
   # Recorded phoneme and word clips
-  audioplayers: ^6.7.1
+  audioplayers: ^6.8.1
 
   # Speech fallback when a clip is missing (Web Speech API on web)
   flutter_tts: ^4.2.5
 
   # Live-only mirror for "Watch my mouth" — never records
-  camera: ^0.12.0+2
+  camera: ^0.12.1
 
   # Utilities
   collection: ^1.19.1

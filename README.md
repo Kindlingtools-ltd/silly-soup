@@ -30,8 +30,8 @@ Letters are introduced in **Phase 2**, not Phase One, so the app is sounds and p
 
 ## Requirements
 
-- Flutter SDK 3.38.7 or later
-- Dart SDK 3.10.7 or later
+- Flutter SDK 3.47.5 or later
+- Dart SDK 3.13.4 or later
 
 ## Getting started
 
@@ -149,7 +149,11 @@ Sounds carry `articulation` (`continuant` or `stop`), which is what decides whet
 
 **Live at <https://silly-soup.kindlingtools.com>.**
 
-Pushes to `master` build the WASM web bundle and deploy it to Cloudflare Pages (project `silly-soup`), the same way as the other Kindling apps. The deploy step reads two repository secrets, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; if either is missing it skips with a warning rather than failing the build.
+Pushes to `master` build the WASM web bundle and deploy `build/web` as the static assets of the Cloudflare **Worker** named `silly-soup`, which is what the custom domain is bound to. See `wrangler.toml`.
+
+This differs from `ks1-phonics` and `ks1-mtc`, which deploy to Cloudflare **Pages**. A Pages project and a Worker are separate resources even when they share a name, so deploying to Pages here would publish to an address the domain does not point at.
+
+The deploy step reads two repository secrets, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; if either is missing it skips with a warning rather than failing the build.
 
 ## Privacy
 
@@ -157,4 +161,4 @@ No accounts, no analytics, no tracking, no network calls at runtime. Everything 
 
 ## Licence
 
-MIT. Poppins is bundled under the SIL Open Font Licence — see `assets/google_fonts/OFL.txt`.
+MIT — see [LICENSE](LICENSE), the same licence as the other Kindling apps. Poppins is bundled under the SIL Open Font Licence — see `assets/google_fonts/OFL.txt`.

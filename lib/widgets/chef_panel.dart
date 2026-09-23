@@ -43,9 +43,8 @@ class ChefPanel extends StatelessWidget {
               ),
               child: Text(
                 line,
-                style: SoupTypography.chefSpeech(
-                  context,
-                ).copyWith(fontSize: 18 * scale),
+                style: SoupTypography.chefSpeech(context)
+                    .copyWith(fontSize: 18 * scale),
               ),
             ),
           ),

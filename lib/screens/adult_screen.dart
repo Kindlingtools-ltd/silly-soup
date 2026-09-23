@@ -263,9 +263,8 @@ class _SoundRow extends StatelessWidget {
           ? Text(
               'Too few words to fill the pantry.'
               '${sound.notes.isEmpty ? '' : ' ${sound.notes}'}',
-              style: SoupTypography.label(
-                context,
-              ).copyWith(color: SoupColours.primary),
+              style: SoupTypography.label(context)
+                  .copyWith(color: SoupColours.primary),
             )
           : (sound.notes.isEmpty ? null : Text(sound.notes)),
       trailing: Row(

@@ -39,18 +39,16 @@ class HomeScreen extends StatelessWidget {
                       SizedBox(width: 12 * scale),
                       Text(
                         'Silly Soup',
-                        style: SoupTypography.heading(
-                          context,
-                        ).copyWith(fontSize: 34 * scale),
+                        style: SoupTypography.heading(context)
+                            .copyWith(fontSize: 34 * scale),
                       ),
                     ],
                   ),
                   SizedBox(height: 4 * scale),
                   Text(
                     'Pick a sound to cook with',
-                    style: SoupTypography.subheading(
-                      context,
-                    ).copyWith(fontSize: 18 * scale),
+                    style: SoupTypography.subheading(context)
+                        .copyWith(fontSize: 18 * scale),
                   ),
                   SizedBox(height: 20 * scale),
                   Expanded(
@@ -122,9 +120,8 @@ class _NoSounds extends StatelessWidget {
           'No sounds are switched on yet.\n'
           'A grown-up can turn some on by holding the button in the corner.',
           textAlign: TextAlign.center,
-          style: SoupTypography.subheading(
-            context,
-          ).copyWith(fontSize: 18 * scale),
+          style: SoupTypography.subheading(context)
+              .copyWith(fontSize: 18 * scale),
         ),
       ),
     );
