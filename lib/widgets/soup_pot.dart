@@ -84,16 +84,20 @@ class _SoupPotState extends State<SoupPot> with SingleTickerProviderStateMixin {
                   size: Size(widget.size, widget.size * 0.9),
                   painter: _PotPainter(highlighted: isHovered),
                 ),
+                // Sat over the broth rather than below it: the point of the
+                // activity is that the child can see their silly soup filling
+                // up, so the ingredients have to be visible, not tucked
+                // behind the rim.
                 Positioned(
-                  top: widget.size * 0.16,
+                  top: widget.size * 0.09,
                   child: SizedBox(
-                    width: widget.size * 0.66,
-                    height: widget.size * 0.4,
+                    width: widget.size * 0.62,
+                    height: widget.size * 0.30,
                     child: _PotContents(
                       contents: widget.contents,
                       controller: _controller,
                       reducedMotion: widget.reducedMotion,
-                      itemSize: widget.size * 0.13,
+                      potSize: widget.size,
                     ),
                   ),
                 ),
@@ -136,12 +140,20 @@ class _PotContents extends StatelessWidget {
     required this.contents,
     required this.controller,
     required this.reducedMotion,
-    required this.itemSize,
+    required this.potSize,
   });
   final List<SoupWord> contents;
   final AnimationController controller;
   final bool reducedMotion;
-  final double itemSize;
+  final double potSize;
+
+  /// Big while there are few, smaller as the pot fills. A child who has put
+  /// two things in should see two large things, not two specks.
+  double get itemSize {
+    if (contents.length <= 3) return potSize * 0.20;
+    if (contents.length <= 6) return potSize * 0.15;
+    return potSize * 0.115;
+  }
 
   @override
   Widget build(BuildContext context) {
