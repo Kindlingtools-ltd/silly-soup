@@ -1,0 +1,208 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# A second push to the same branch makes the first one irrelevant. Keep
+# master deploys serialised, though — cancelling one mid-upload would leave
+# Pages serving a half-published build.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.38.7'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyse code
+        # Infos are failures here: analysis_options.yaml is the house style,
+        # and a rule nobody has to obey is not a rule.
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Check for unused or missing dependencies
+        run: flutter pub deps --style=compact
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test --coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage/lcov.info
+          fail_ci_if_error: false
+
+  audio-checklist:
+    name: Audio checklist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Exits non-zero while clips are outstanding, which is the normal state
+      # until the recordings are made. Reported, not enforced — the app falls
+      # back to the device voice and logs what is missing.
+      - name: List outstanding recordings
+        continue-on-error: true
+        run: dart run tool/audio_checklist.dart
+
+  build-web:
+    name: Build & Deploy Web
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build web (WASM)
+        run: flutter build web --wasm --release --base-href "/"
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-build
+          path: build/web
+          retention-days: 7
+
+      - name: Setup Bun
+        if: github.event_name != 'pull_request'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Wrangler
+        if: github.event_name != 'pull_request'
+        run: bun add -g wrangler
+
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning title=Deploy skipped::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to publish to Cloudflare Pages."
+            exit 0
+          fi
+          wrangler pages project create silly-soup --production-branch=master || true
+          wrangler pages deploy build/web --project-name=silly-soup --branch=master
+
+  build-android:
+    name: Build Android
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: false  # Web first; enable when the app goes to the Play Store.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-ios:
+    name: Build iOS
+    needs: [lint, test]
+    runs-on: macos-latest
+    if: false  # Web first; enable when the app goes to the App Store.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign

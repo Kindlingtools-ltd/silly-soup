@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+
+import 'providers/providers.dart';
+import 'screens/screens.dart';
+import 'utils/app_theme.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Poppins is bundled under assets/google_fonts. Runtime fetching is off so
+  // the app never calls out to fonts.gstatic.com — no network calls at all is
+  // a hard requirement here, not a nicety. See PRIVACY.md.
+  GoogleFonts.config.allowRuntimeFetching = false;
+
+  // Landscape suits a shared tablet on a table between an adult and a child.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
+  runApp(const SillySoupApp());
+}
+
+class SillySoupApp extends StatelessWidget {
+  const SillySoupApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => AppProvider(),
+      child: MaterialApp(
+        title: 'Silly Soup',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const AppLoader(),
+      ),
+    );
+  }
+}
+
+/// Loads the sound bank and the adult's settings before the chef appears.
+class AppLoader extends StatefulWidget {
+  const AppLoader({super.key});
+
+  @override
+  State<AppLoader> createState() => _AppLoaderState();
+}
+
+class _AppLoaderState extends State<AppLoader> {
+  @override
+  void initState() {
+    super.initState();
+    _initialise();
+  }
+
+  Future<void> _initialise() async {
+    final app = context.read<AppProvider>();
+    await app.initialise();
+    if (!mounted) return;
+    final error = app.error;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: SoupColours.primary),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppProvider>(
+      builder: (context, app, _) {
+        if (!app.isInitialised) {
+          return Scaffold(
+            backgroundColor: SoupColours.background,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.asset(
+                    'assets/kindling_logo.svg',
+                    width: 80,
+                    height: 80,
+                  ),
+                  const SizedBox(height: 24),
+                  Text('Silly Soup', style: SoupTypography.heading(context)),
+                  const SizedBox(height: 16),
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        SoupColours.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return const HomeScreen();
+      },
+    );
+  }
+}

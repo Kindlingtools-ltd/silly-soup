@@ -1,0 +1,51 @@
+# Dependabot configuration — Flutter/Dart app.
+#
+# "pub" covers pubspec.yaml. The Flutter and Java SDK versions themselves come
+# from subosito/flutter-action and actions/setup-java in the workflow, so those
+# are handled by the github-actions ecosystem below rather than by pub.
+version: 2
+
+updates:
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/London"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+    groups:
+      # Dart/Flutter dev tooling moves together; one PR beats several.
+      dart-dev:
+        dependency-type: "development"
+      # The audio stack is federated across six platform packages that are
+      # released in lockstep. Splitting them produces PRs that cannot pass.
+      audioplayers:
+        patterns:
+          - "audioplayers*"
+      camera:
+        patterns:
+          - "camera*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/London"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns:
+          - "*"

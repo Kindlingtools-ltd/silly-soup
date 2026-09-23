@@ -1,0 +1,39 @@
+{
+    "name": "Silly Soup: Phase One phonics",
+    "short_name": "Silly Soup",
+    "id": "com.kindlingtools.sillysoup",
+    "start_url": "https://silly-soup.kindlingtools.com/",
+    "scope": "https://silly-soup.kindlingtools.com/",
+    "display": "fullscreen",
+    "background_color": "#FFF7EE",
+    "theme_color": "#FF7A45",
+    "description": "A free alliteration game for Early Years children aged 3 to 5, based on the Silly Soup activity from Letters and Sounds Phase One.",
+    "orientation": "landscape",
+    "prefer_related_applications": false,
+    "lang": "en-GB",
+    "categories": ["education", "kids"],
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

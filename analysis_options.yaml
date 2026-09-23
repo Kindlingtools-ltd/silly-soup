@@ -1,0 +1,63 @@
+# Static analysis for Silly Soup.
+#
+# Stricter than the Flutter default on purpose: the game rules live in pure
+# functions that a child's session depends on, and CI runs `flutter analyze`
+# with `--fatal-infos`, so anything below is a build failure rather than a
+# suggestion.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # An unused import or a dangling TODO should not be able to reach master.
+    unused_import: error
+    unused_local_variable: error
+    dead_code: error
+    todo: ignore
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+
+linter:
+  rules:
+    # Correctness
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - avoid_slow_async_io
+    - avoid_type_to_string
+    - cancel_subscriptions
+    - close_sinks
+    - collection_methods_unrelated_type
+    - comment_references
+    - literal_only_boolean_expressions
+    - no_adjacent_strings_in_list
+    - throw_in_finally
+    - unnecessary_statements
+    - use_build_context_synchronously
+
+    # Style — consistent with the other Kindling Flutter apps
+    - prefer_relative_imports
+    - avoid_redundant_argument_values
+    - avoid_unused_constructor_parameters
+    - directives_ordering
+    - omit_local_variable_types
+    - prefer_const_constructors
+    - prefer_const_constructors_in_immutables
+    - prefer_const_declarations
+    - prefer_final_in_for_each
+    - prefer_final_locals
+    - prefer_single_quotes
+    - require_trailing_commas
+    - sort_constructors_first
+    - unawaited_futures
+    - unnecessary_await_in_return
+    - unnecessary_lambdas
+    - unnecessary_parenthesis
+
+    # Documentation — public API of the game rules should say what it does
+    - package_api_docs

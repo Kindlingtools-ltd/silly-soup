@@ -1,0 +1,56 @@
+name: silly_soup
+description: "Silly Soup - a Letters and Sounds Phase One alliteration game for EYFS"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.9
+
+  # Typography. Poppins is bundled under assets/google_fonts so the app never
+  # reaches fonts.gstatic.com at runtime — see PRIVACY.md.
+  google_fonts: ^8.2.1
+
+  # State management
+  provider: ^6.1.5+1
+
+  # Local storage for adult settings
+  shared_preferences: ^2.5.5
+
+  # SVG rendering (logo, ingredient artwork)
+  flutter_svg: ^2.3.0
+
+  # Recorded phoneme and word clips
+  audioplayers: ^6.7.1
+
+  # Speech fallback when a clip is missing (Web Speech API on web)
+  flutter_tts: ^4.2.5
+
+  # Live-only mirror for "Watch my mouth" — never records
+  camera: ^0.12.0+2
+
+  # Utilities
+  collection: ^1.19.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/data/
+    - assets/images/
+    - assets/audio/phonemes/
+    - assets/audio/words/
+    - assets/audio/song/
+    - assets/google_fonts/
+    - assets/kindling_logo.svg
