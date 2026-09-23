@@ -42,6 +42,12 @@ flutter run -d ios        # iOS simulator
 flutter run -d android    # Android emulator
 ```
 
+`flutter pub get` signs off with *"2 packages have newer versions incompatible
+with dependency constraints"*. That is expected and nothing is wrong: the two it
+means, `material_color_utilities` and `test_api`, are pinned to an exact version
+by the Flutter SDK itself, not by us — see the note at the top of `pubspec.yaml`.
+Every dependency this app declares is at its latest published version.
+
 ## Testing it on a tablet
 
 The app is designed for a tablet lying flat on a table between an adult and a child, in landscape.
