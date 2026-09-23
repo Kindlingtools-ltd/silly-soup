@@ -88,6 +88,18 @@ dart run tool/audio_checklist.dart --csv > recording-list.csv
 
 The checklist tells the person recording exactly what to say for each clip, including which sounds to stretch and which to bounce.
 
+Clips can also be synthesised with an x.ai voice model, through the Agent IAP proxy:
+
+```bash
+dart run tool/generate_audio.dart --dry-run   # what would be generated
+dart run tool/generate_audio.dart             # generate only what is missing
+dart run tool/generate_audio.dart --force     # regenerate everything
+```
+
+Generated clips are committed, and the tool skips anything already on disk — 88 files is not something to rebuild on every run. The voice is British (`en-GB`), and each phoneme clip carries an instruction not to add a vowel to the end of the sound, which is the one mistake that would make the app teach the wrong thing.
+
+> The tool currently fails with `403 Team is not authorized to perform this action` from x.ai: `/v1/audio/speech` is not enabled for the account. Until it is, the app falls back to the device voice and the checklist stays at 88 outstanding.
+
 ## Project structure
 
 ```
