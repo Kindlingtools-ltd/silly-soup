@@ -19,11 +19,13 @@ const String bankPath = 'assets/data/sound_bank.json';
 const String audioRoot = 'assets/audio';
 const String songClip = 'assets/audio/song/silly_soup_song.mp3';
 
-/// The default voice. British, because the children using this are in
-/// England and the whole point is modelling the sound they should copy.
-const String defaultVoice = 'Eve';
-const String defaultModel = 'grok-tts';
-const String language = 'en-GB';
+/// x.ai's default built-in voice. Its accent has to be confirmed by ear —
+/// the API does not expose a voices list and the docs do not name accents,
+/// so "use a British voice" is settled at audit time, not from the request.
+const String defaultVoice = 'eve';
+
+/// The children using this are in England, so the model they copy has to be.
+const String defaultLanguage = 'en-GB';
 
 class Clip {
   const Clip({
@@ -31,7 +33,6 @@ class Clip {
     required this.kind,
     required this.subject,
     required this.text,
-    this.instructions = '',
   });
 
   final String path;
@@ -41,9 +42,6 @@ class Clip {
   /// What the voice should say.
   final String text;
 
-  /// How it should be said.
-  final String instructions;
-
   bool get exists => File(path).existsSync();
 }
 
@@ -51,7 +49,7 @@ Future<void> main(List<String> args) async {
   final dryRun = args.contains('--dry-run');
   final force = args.contains('--force');
   final voice = _option(args, '--voice') ?? defaultVoice;
-  final model = _option(args, '--model') ?? defaultModel;
+  final language = _option(args, '--language') ?? defaultLanguage;
 
   final bankFile = File(bankPath);
   if (!bankFile.existsSync()) {
@@ -97,8 +95,8 @@ Future<void> main(List<String> args) async {
         client: client,
         host: host,
         token: token,
-        model: model,
         voice: voice,
+        language: language,
         clip: clip,
       );
       await File(clip.path).parent.create(recursive: true);
@@ -128,29 +126,26 @@ Future<List<int>> _synthesise({
   required HttpClient client,
   required String host,
   required String token,
-  required String model,
   required String voice,
+  required String language,
   required Clip clip,
 }) async {
-  final uri = Uri.parse('http://$host/xai/v1/audio/speech');
+  // x.ai's text-to-speech is POST /v1/tts taking {text, voice_id, language}.
+  // It is not the OpenAI-compatible /v1/audio/speech, and it is not the
+  // WebSocket route — a GET to the same path speaks WebSocket, which is what
+  // made it look like one.
+  final uri = Uri.parse('http://$host/xai/v1/tts');
   final request = await client.postUrl(uri);
   request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
   request.headers.contentType = ContentType.json;
   request.write(
-    json.encode({
-      'model': model,
-      'voice': voice,
-      'input': clip.text,
-      'language': language,
-      'response_format': 'mp3',
-      if (clip.instructions.isNotEmpty) 'instructions': clip.instructions,
-    }),
+    json.encode({'text': clip.text, 'voice_id': voice, 'language': language}),
   );
 
   final response = await request.close();
   if (response.statusCode != 200) {
     final body = await response.transform(utf8.decoder).join();
-    throw HttpException('HTTP ${response.statusCode}: ${body.trim()}');
+    throw TtsException(response.statusCode, body.trim());
   }
 
   final bytes = <int>[];
@@ -158,6 +153,21 @@ Future<List<int>> _synthesise({
     bytes.addAll(chunk);
   }
   return bytes;
+}
+
+/// A non-200 from the proxy or from x.ai.
+class TtsException implements Exception {
+  const TtsException(this.statusCode, this.body);
+
+  final int statusCode;
+  final String body;
+
+  /// The gateway held the call in front of a person and nobody answered.
+  /// Retrying 87 more times would just queue 87 more prompts.
+  bool get isApprovalDenied => body.contains('approval_denied');
+
+  @override
+  String toString() => 'HTTP $statusCode: $body';
 }
 
 List<Clip> _clips(Map<String, dynamic> bank) {
@@ -172,13 +182,6 @@ List<Clip> _clips(Map<String, dynamic> bank) {
           kind: 'phoneme',
           subject: '/${sound['id']}/',
           text: _pureSound(sound),
-          // The single most important instruction in the whole app: a pure
-          // sound with an added "uh" teaches children to say "suh" for /s/.
-          instructions:
-              'Speak in a warm British English accent for a nursery class. '
-              'Say only the pure speech sound, with no vowel added on the end '
-              '— "sss", never "suh". '
-              '${sound['articulation'] == 'stop' ? 'Bounce it crisply three times.' : 'Hold the sound on smoothly.'}',
         ),
     for (final word in words)
       if ((word['audio'] as String? ?? '').isNotEmpty)
@@ -187,19 +190,12 @@ List<Clip> _clips(Map<String, dynamic> bank) {
           kind: 'word',
           subject: word['word'] as String,
           text: word['word'] as String,
-          instructions:
-              'Speak in a warm British English accent for a nursery class. '
-              'Say the single word clearly and slowly, with Received '
-              'Pronunciation vowels.',
         ),
     Clip(
       path: songClip,
       kind: 'song',
       subject: 'The Silly Soup Song',
       text: _songLyrics(),
-      instructions:
-          'A warm British English voice singing to the tune of "Pop Goes the '
-          'Weasel", at nursery-rhyme pace.',
     ),
   ];
 }
