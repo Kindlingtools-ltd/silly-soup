@@ -39,7 +39,16 @@ class PlatformAudioSink implements AudioSink {
   Future<bool> playAsset(String assetPath, {required double volume}) async {
     if (_knownMissing.contains(assetPath)) return false;
     try {
-      await rootBundle.load(assetPath);
+      final data = await rootBundle.load(assetPath);
+      // "Does this asset exist?" cannot be answered by the load succeeding.
+      // On the web a missing asset is an HTTP request, and a single-page-app
+      // host answers those with 200 and index.html — so every missing clip
+      // looked present, the player was handed HTML, and the child heard
+      // nothing at all instead of the spoken fallback.
+      if (!_looksLikeAudio(data)) {
+        _knownMissing.add(assetPath);
+        return false;
+      }
     } catch (_) {
       _knownMissing.add(assetPath);
       return false;
@@ -89,6 +98,33 @@ class PlatformAudioSink implements AudioSink {
     } catch (error) {
       debugPrint('Silly Soup: could not speak "$text" ($error)');
     }
+  }
+
+  /// True when the bytes start like a sound file rather than, say, a web
+  /// page. Covers the container formats a clip could plausibly arrive in.
+  static bool _looksLikeAudio(ByteData data) {
+    if (data.lengthInBytes < 4) return false;
+    final bytes = data.buffer.asUint8List(data.offsetInBytes, 4);
+    // "ID3" tag, or an MPEG frame sync.
+    if (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) return true;
+    if (bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) return true;
+    // RIFF (wav), OggS (ogg/opus), fLaC.
+    const signatures = [
+      [0x52, 0x49, 0x46, 0x46],
+      [0x4F, 0x67, 0x67, 0x53],
+      [0x66, 0x4C, 0x61, 0x43],
+    ];
+    for (final signature in signatures) {
+      var match = true;
+      for (var i = 0; i < 4; i++) {
+        if (bytes[i] != signature[i]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) return true;
+    }
+    return false;
   }
 
   @override

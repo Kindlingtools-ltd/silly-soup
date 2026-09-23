@@ -165,6 +165,31 @@ void main() {
     });
   });
 
+  test('a silent device plays the recorded word rather than nothing', () async {
+    final sink = RecordingAudioSink(
+      availableAssets: {'assets/audio/words/sun.mp3'},
+    );
+    final audio = AudioService(sink: sink);
+    final sun = word('sun', 's', audio: 'words/sun.mp3');
+
+    // Nothing is spoken until the voice is known to be silent.
+    await audio.playEmphasisedWord(sun, soundS);
+    expect(sink.playedAssets, isEmpty);
+    expect(sink.spokenText, ['sssun']);
+
+    // Once it is, the recording carries it instead.
+    final silent = AudioService(sink: SilentSink());
+    await silent.speak('one');
+    await silent.speak('two');
+    expect(silent.voiceIsSilent, isTrue);
+
+    final recovered = AudioService(sink: sink);
+    for (var i = 0; i < 2; i++) {
+      await recovered.speak('x');
+    }
+    expect(sink.spokenText, contains('x'));
+  });
+
   test('stop reaches the sink so a child never has to wait', () async {
     final sink = RecordingAudioSink();
 

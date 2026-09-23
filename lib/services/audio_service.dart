@@ -81,8 +81,20 @@ class AudioService {
   /// There is no clip for the emphasised form — the emphasis is the chef's
   /// job — so this always goes through the voice unless a setting has
   /// recorded one for this exact word.
-  Future<void> playEmphasisedWord(SoupWord word, PhonemeSound sound) =>
-      speak(RecitalService.emphasise(word, sound));
+  Future<void> playEmphasisedWord(SoupWord word, PhonemeSound sound) async {
+    // On a device whose voice does not work, the emphasis cannot be spoken at
+    // all. The recorded word is worth far more than silence, even without the
+    // stretched or bounced first sound.
+    final clip = word.audioAssetPath;
+    if (voiceIsSilent && clip != null) {
+      var played = false;
+      await _enqueue(() async {
+        played = await _sink.playAsset(clip, volume: volume);
+      });
+      if (played) return;
+    }
+    await speak(RecitalService.emphasise(word, sound));
+  }
 
   /// The stirring song: the adult's own recording if they made one, then the
   /// bundled recording, then the words spoken.
