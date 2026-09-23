@@ -6,26 +6,74 @@ are treated as hard requirements, not goals.
 
 ## What the app collects
 
-Nothing.
+No personal data, and nothing about a child.
 
-There are no accounts, no sign-in, no profiles, no analytics, no crash
-reporting, no advertising, no third-party SDKs, and no identifiers of any
-kind. The app does not know who is using it and has nowhere to send that
-information if it did.
+There are no accounts, no sign-in, no profiles, no crash reporting, no
+advertising and no advertising identifiers. Nothing a child says, types, draws
+or is filmed doing ever leaves the device, because the app never has any of it
+to send.
+
+The web build does carry **Google Analytics 4**, the same as the other
+Kindling apps. What it measures is how the app itself is used — which sounds
+are picked, how many things go into a pot, which settings a school changes —
+so that time goes into the parts of the app that classrooms actually reach for.
+
+### The events the app sends
+
+| Event | What it records |
+| --- | --- |
+| `page_view` | Which of the four screens is open: `home`, `soup`, `watch_my_mouth`, `adult_area`. |
+| `app_started`, `app_start_failed` | The app booted, and the settings it booted with: pantry size, letters on or off, whiteboard mode, drag or tap, mirror on or off. |
+| `soup_started`, `soup_finished`, `soup_abandoned` | A soup was opened, run to the tasting, or left early. Carries the sound, how many things went in, and how long it took. |
+| `chef_modelled`, `childs_turn_started` | The chef modelled a soup; the pot was handed over. |
+| `ingredient_added`, `ingredient_removed` | Which pantry word went in or came out, and how full the pot was. Pantry words come from the app's own word bank. |
+| `soup_stirred`, `sound_repeated`, `song_played`, `audio_stopped` | The stir, repeat, song and mute buttons were used. |
+| `mouth_view_opened` | "Watch my mouth" was opened, and whether the mirror was on. |
+| `adult_area_opened`, `setting_changed` | The adult gate was held open, and which setting moved. |
+
+Every parameter is a sound id, a word from the built-in bank, a count, a
+duration or a setting value. The full list lives in
+`lib/services/analytics_service.dart`.
+
+### What is never sent
+
+- Anything from the camera or the microphone, including the mirror and any
+  recording an adult saves as custom content.
+- Any text an adult types: word names they add, sound labels, and anything
+  in the Stage 2 "Look, listen and note" panel.
+- Any name, initials, group name, or identifier of a child, an adult or a
+  school.
+
+### What Google receives
+
+GA4 sets its own cookie and derives a client identifier from it, which is what
+makes a returning tablet countable as a returning tablet rather than a new
+one. It is a measure of a browser, not of a person, and the app never joins it
+to anything. GA4 discards the IP address rather than storing it.
+
+Advertising is denied at the tag, before it configures itself:
+`ad_storage`, `ad_user_data` and `ad_personalization` are all set to `denied`,
+Google Signals is off, and ad personalisation is off. Nothing measured here can
+be used to build an advertising audience.
+
+A school that would rather send nothing at all can block
+`www.googletagmanager.com` on its network; the app is built to carry on
+regardless, because it has to work with the wifi down anyway.
 
 ## Network calls
 
-The app makes **no network calls while it runs**. Specifically:
+Once the app is running it makes exactly one kind of network call: the Google
+Analytics tag described above. Specifically:
 
 - Poppins is bundled in `assets/google_fonts` and `GoogleFonts.config.allowRuntimeFetching`
   is set to `false` in `main.dart`, so no font is ever fetched from `fonts.gstatic.com`.
-- `web/index.html` loads no analytics tag, no tag manager, no font CDN and no
-  third-party script. This is a deliberate difference from the other Kindling
-  apps, which do carry an analytics tag.
+- `web/index.html` loads the Google tag and no other third-party script. There
+  is no tag manager and no font CDN.
 - There are no external links, no in-app purchases and no ads.
-- The web build is an installable PWA and works fully offline.
-
-The only network activity is downloading the app itself.
+- The web build is an installable PWA and still works fully offline. The
+  service worker only ever touches same-origin requests, so a blocked or
+  unreachable tag cannot stop the app loading, and events raised while offline
+  are simply dropped rather than queued up to send later.
 
 ## What is stored on the device
 
@@ -67,7 +115,9 @@ child's session.
 
 ## Children's data
 
-Because nothing is collected, there is no children's personal data to protect.
+No children's personal data is collected. The analytics above measure the app,
+not the child using it: there is no identifier that points at a child, nothing
+a child produced is sent, and nothing sent can be traced back to one.
 
 The Stage 2 "Look, listen and note" observation panel is the one place an
 adult can type anything about a child. It is off by default, stored on the

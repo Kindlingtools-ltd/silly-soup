@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/providers.dart';
 import 'screens/screens.dart';
+import 'services/services.dart';
 import 'utils/app_theme.dart';
 
 Future<void> main() async {
@@ -22,20 +23,27 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  runApp(const SillySoupApp());
+  // One service, shared by the provider that reports what happens in the
+  // kitchen and the observer that reports which screen is up.
+  runApp(SillySoupApp(analytics: AnalyticsService()));
 }
 
 class SillySoupApp extends StatelessWidget {
-  const SillySoupApp({super.key});
+  SillySoupApp({super.key, required this.analytics})
+    : _routeObserver = AnalyticsRouteObserver(analytics);
+
+  final AnalyticsService analytics;
+  final AnalyticsRouteObserver _routeObserver;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AppProvider(),
+      create: (_) => AppProvider(analytics: analytics),
       child: MaterialApp(
         title: 'Silly Soup',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        navigatorObservers: [_routeObserver],
         home: const AppLoader(),
       ),
     );

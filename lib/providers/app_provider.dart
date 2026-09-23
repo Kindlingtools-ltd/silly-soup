@@ -9,13 +9,16 @@ class AppProvider extends ChangeNotifier {
     StorageService? storage,
     WordBankService? wordBank,
     AudioService? audio,
+    AnalyticsService? analytics,
   }) : _storage = storage ?? StorageService(),
        _wordBank = wordBank ?? WordBankService(),
-       _audio = audio ?? AudioService();
+       _audio = audio ?? AudioService(),
+       _analytics = analytics ?? AnalyticsService();
 
   final StorageService _storage;
   final WordBankService _wordBank;
   final AudioService _audio;
+  final AnalyticsService _analytics;
 
   bool _isInitialised = false;
   String? _error;
@@ -26,6 +29,7 @@ class AppProvider extends ChangeNotifier {
   AppSettings get settings => _settings;
   SoundBank get bank => _wordBank.bank;
   AudioService get audio => _audio;
+  AnalyticsService get analytics => _analytics;
 
   /// Warnings about the merged bank, shown to adults only.
   ValidationResult get bankValidation => _wordBank.validation;
@@ -44,15 +48,21 @@ class AppProvider extends ChangeNotifier {
       await _wordBank.load();
     } catch (error) {
       _error = 'Could not load the soup ingredients: $error';
+      _analytics.logStartupFailed();
     } finally {
       _isInitialised = true;
+      if (_error == null) {
+        _analytics.logAppStarted(_settings, soundCount: availableSounds.length);
+      }
       notifyListeners();
     }
   }
 
   Future<void> updateSettings(AppSettings settings) async {
+    final previous = _settings;
     _settings = settings;
     _audio.volume = settings.volume;
+    _analytics.logSettingsChanged(previous, settings);
     notifyListeners();
     await _storage.saveSettings(settings);
   }
