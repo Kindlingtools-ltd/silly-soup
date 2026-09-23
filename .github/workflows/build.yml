@@ -146,7 +146,10 @@ jobs:
             exit 0
           fi
           wrangler pages project create silly-soup --production-branch=master || true
-          wrangler pages deploy build/web --project-name=silly-soup --branch=master
+          # --commit-dirty: the runner's working tree is not pristine after
+          # setup, and wrangler warns about it on every deploy. The upload is
+          # build/web either way.
+          wrangler pages deploy build/web --project-name=silly-soup --branch=master --commit-dirty=true
 
   build-android:
     name: Build Android
