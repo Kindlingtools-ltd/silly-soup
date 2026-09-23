@@ -36,28 +36,33 @@ void main() {
       );
     });
 
-    test('no third-party origin is referenced by the shell', () {
+    test('the analytics tag is the only off-origin host in the shell', () {
+      // Hosts the browser is allowed to contact. Adding to this set is a
+      // privacy decision, not a formatting one — PRIVACY.md has to change
+      // with it, and so does what a school is told it can block.
+      const allowed = {'www.googletagmanager.com'};
+
       for (final source in {
         'web/flutter_bootstrap.js': bootstrap,
         'web/index.html': indexHtml,
       }.entries) {
-        final urls = RegExp('https?://[^\'"\\s)]+')
+        final offOrigin = RegExp('https?://[^\'"\\s)]+')
             .allMatches(source.value)
-            .map((match) => match.group(0)!)
-            // The page's own canonical, Open Graph and schema URLs are
+            .map((match) => Uri.parse(match.group(0)!).host)
+            // The page's own canonical, Open Graph and Twitter URLs are
             // metadata for crawlers, not requests the browser makes.
-            .where(
-              (url) => !url.startsWith('https://silly-soup.kindlingtools.com'),
-            )
+            .where((host) => host != 'silly-soup.kindlingtools.com')
             // Documentation links inside comments are not fetched either.
-            .where((url) => !url.startsWith('https://ico.org.uk'))
+            .where((host) => host != 'ico.org.uk')
+            .where((host) => !allowed.contains(host))
+            .toSet()
             .toList();
         expect(
-          urls,
+          offOrigin,
           isEmpty,
           reason:
-              '${source.key} references ${jsonEncode(urls)}. Nothing in '
-              'the shell may point off-origin.',
+              '${source.key} points at ${jsonEncode(offOrigin)}. The only '
+              'host this app may contact is the analytics tag.',
         );
       }
     });

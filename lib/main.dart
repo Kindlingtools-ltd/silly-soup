@@ -12,8 +12,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Poppins is declared as a font family in pubspec.yaml, so the engine loads
-  // it from the bundle and never calls out to fonts.gstatic.com — no network
-  // calls at all is a hard requirement here, not a nicety. See PRIVACY.md.
+  // it from the bundle and never calls out to fonts.gstatic.com. The
+  // analytics tag is the one call this app makes on purpose; a font CDN it
+  // never asked for is not. See PRIVACY.md.
   // The google_fonts package used to register this licence for us.
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(const [
@@ -27,20 +28,27 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  runApp(const SillySoupApp());
+  // One service, shared by the provider that reports what happens in the
+  // kitchen and the observer that reports which screen is up.
+  runApp(SillySoupApp(analytics: AnalyticsService()));
 }
 
 class SillySoupApp extends StatelessWidget {
-  const SillySoupApp({super.key});
+  SillySoupApp({super.key, required this.analytics})
+    : _routeObserver = AnalyticsRouteObserver(analytics);
+
+  final AnalyticsService analytics;
+  final AnalyticsRouteObserver _routeObserver;
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => AppProvider(),
+      create: (_) => AppProvider(analytics: analytics),
       child: MaterialApp(
         title: 'Silly Soup',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        navigatorObservers: [_routeObserver],
         home: const AppLoader(),
       ),
     );

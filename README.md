@@ -26,7 +26,7 @@ Letters are introduced in **Phase 2**, not Phase One, so the app is sounds and p
 - **The Silly Soup Song** — original words to the public-domain tune of *Pop Goes the Weasel*, replaceable with an adult's own recording
 - **Adult area** — behind a three-second press-and-hold: sounds and their order, pantry size, Phase 2 letters, drag vs tap, mirror, volume, reduced motion, whiteboard mode
 - **Whiteboard mode** — extra-large and adult-paced, for group sessions
-- **Works offline** — installable PWA with its own service worker, no network calls at runtime
+- **Works offline** — installable PWA with its own service worker; the only runtime network call is the analytics tag, and the app carries on without it
 
 ## Requirements
 
@@ -41,6 +41,12 @@ flutter run -d chrome     # web
 flutter run -d ios        # iOS simulator
 flutter run -d android    # Android emulator
 ```
+
+`flutter pub get` signs off with *"2 packages have newer versions incompatible
+with dependency constraints"*. That is expected and nothing is wrong: the two it
+means, `material_color_utilities` and `test_api`, are pinned to an exact version
+by the Flutter SDK itself, not by us — see the note at the top of `pubspec.yaml`.
+Every dependency this app declares is at its latest published version.
 
 ## Testing it on a tablet
 
@@ -98,9 +104,11 @@ dart run tool/generate_audio.dart --force     # regenerate everything
 
 Generated clips are committed, and the tool skips anything already on disk — 88 files is not something to rebuild on every run. The voice is British (`en-GB`), and each phoneme clip carries an instruction not to add a vowel to the end of the sound, which is the one mistake that would make the app teach the wrong thing.
 
-> The tool currently stops with `approval_denied` from Agent IAP: `POST /xai/v1/tts` falls through to the gateway's default `ask` rule, is held in front of a person, and times out unanswered. Approve it when it appears, or add an allow rule for that path. Until then the app falls back to the device voice and the checklist stays at 88 outstanding.
+**79 of the 88 clips are recorded and committed** — all 78 words and the song, generated with x.ai's `eve` voice at `en-GB`.
 
-> The voice's accent is not settled by the request — x.ai exposes no voices list and its docs do not name accents — so "British voice" is confirmed by listening to the output, which is what the audit step is for.
+The nine pure-sound clips are **not** shipped, and the generator skips them unless you pass `--include-phonemes`. The voice reads a bare consonant as its letter name: asking it for `t, t, t` returned a clip byte-identical to one that says `tee, tee, tee`. Teaching "tee" as the sound /t/ is the one mistake this app cannot make, so those nine need a human voice. Until they exist the adult area lists them as missing and the device voice fills in.
+
+> Accent is not settled by the request — x.ai exposes no voices list and its docs do not name accents — so "British" is a judgement made by listening to the output.
 
 ## Project structure
 
@@ -198,9 +206,13 @@ it arrives.
   now feature-detects WasmGC inline and preloads the right bundle in the first
   round trip. `as="fetch"` preloads need `crossorigin` to match the loader's
   own `fetch()`; without it the browser downloads everything twice.
-- **Nothing comes from Google.** See [PRIVACY.md](PRIVACY.md) — this is a
-  privacy fix first, but it also takes a second DNS lookup and TLS handshake
-  off the critical path and lets `sw.js` cache the renderer.
+- **The engine no longer comes from Google.** The loader fetched the renderer
+  from `www.gstatic.com` and the emoji fallbacks from `fonts.gstatic.com` by
+  default — 1.4 MB from two origins nobody had chosen, which is a different
+  thing from the analytics tag the app does deliberately carry. See
+  [PRIVACY.md](PRIVACY.md). It is a privacy fix first, but it also takes a
+  second DNS lookup and TLS handshake off the critical path and lets `sw.js`
+  cache the renderer.
 - **`google_fonts` is gone.** The package carries a generated table of every
   family Google publishes so it can look one of them up at runtime. Bundling
   Poppins and declaring it in `pubspec.yaml` does the same job and took
@@ -210,14 +222,16 @@ it arrives.
   Cloudflare Pages otherwise sends `max-age=0, must-revalidate` for every file.
 
 Measured in headless Chromium against a local server that mimics Pages
-(brotli, ETags), throttled to 8&nbsp;Mbit/s with 60&nbsp;ms RTT:
+(brotli, ETags), throttled to 8&nbsp;Mbit/s with 60&nbsp;ms RTT. Both columns
+are without the analytics tag, which landed separately and adds a small
+async script to each:
 
 | | Before | After |
 |---|---|---|
 | Something on screen | 3.1 s | **0.12 s** |
 | App usable | 3.1 s | 2.6 s |
 | Transferred | 2591 KiB | **2162 KiB** |
-| Of that, from Google | 1393 KiB | **0** |
+| Of that, unchosen, from Google | 1393 KiB | **0** |
 | Second visit | full revalidation | **0 KiB, 0.7 s** |
 | Offline | renderer not cached | **boots in 0.6 s** |
 
@@ -241,7 +255,13 @@ The deploy step reads two repository secrets, `CLOUDFLARE_API_TOKEN` and `CLOUDF
 
 ## Privacy
 
-No accounts, no analytics, no tracking, no network calls at runtime. Everything stays on the device. See [PRIVACY.md](PRIVACY.md).
+No accounts, and nothing collected about a child. Everything a child does stays on the device.
+
+The web build carries Google Analytics 4 (`G-DEQ5M9ZK36`), like the other Kindling apps, measuring how the app is used rather than who is using it: screens opened, sounds picked, pantry words added, soups finished or left, settings changed. Nothing from the camera or microphone is sent, no text an adult types is sent, and advertising is denied at the tag — `ad_storage`, `ad_user_data` and `ad_personalization` are all `denied`, with Google Signals off.
+
+The tag fires no page views of its own (`send_page_view: false`): the app is one page whose URL never changes, so screen views come from a `NavigatorObserver` instead — see `lib/services/analytics_route_observer.dart`. Analytics is web-only; the conditional import is keyed on `dart.library.js_interop` rather than `dart.library.html`, because the app is built with `--wasm` and `dart.library.html` is false there.
+
+Every event, and everything deliberately left out, is listed in [PRIVACY.md](PRIVACY.md).
 
 ## Licence
 

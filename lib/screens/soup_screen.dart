@@ -20,7 +20,7 @@ class SoupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.read<AppProvider>();
     return ChangeNotifierProvider<SoupProvider>(
-      create: (_) => SoupProvider(audio: app.audio),
+      create: (_) => SoupProvider(audio: app.audio, analytics: app.analytics),
       child: _SoupView(sound: sound),
     );
   }
@@ -37,6 +37,12 @@ class _SoupView extends StatefulWidget {
 class _SoupViewState extends State<_SoupView> {
   bool _started = false;
 
+  /// Held onto rather than read in `dispose`. By the time this screen is
+  /// being torn down the provider is no longer reachable from the context,
+  /// and `context.read` there throws — which is why the chef used to carry
+  /// on talking over the sound picker after a child backed out.
+  SoupProvider? _soup;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -47,13 +53,14 @@ class _SoupViewState extends State<_SoupView> {
     final soup = context.read<SoupProvider>()
       ..adultPaced = app.settings.whiteboardMode
       ..reducedMotion = app.prefersReducedMotion(context);
+    _soup = soup;
     soup.start(sound: widget.sound, bank: app.bank, settings: app.settings);
   }
 
   @override
   void dispose() {
     // Stop the chef talking over whatever comes next.
-    context.read<SoupProvider>().clear();
+    _soup?.clear();
     super.dispose();
   }
 
@@ -153,9 +160,7 @@ class _TopBar extends StatelessWidget {
           icon: Icons.face_retouching_natural_outlined,
           outlined: true,
           scale: scale * 0.8,
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => MouthScreen(sound: sound)),
-          ),
+          onPressed: () => _openMouthView(context, app),
         ),
         SizedBox(width: 8 * scale),
         Semantics(
@@ -164,7 +169,10 @@ class _TopBar extends StatelessWidget {
           child: IconButton(
             iconSize: 34 * scale,
             color: SoupColours.primary,
-            onPressed: () => app.audio.playSong(),
+            onPressed: () {
+              app.analytics.logSongPlayed();
+              app.audio.playSong();
+            },
             icon: const Icon(Icons.music_note_rounded),
           ),
         ),
@@ -176,11 +184,28 @@ class _TopBar extends StatelessWidget {
           child: IconButton(
             iconSize: 34 * scale,
             color: SoupColours.textSecondary,
-            onPressed: app.audio.stop,
+            onPressed: () {
+              app.analytics.logAudioStopped();
+              app.audio.stop();
+            },
             icon: const Icon(Icons.volume_off_rounded),
           ),
         ),
       ],
+    );
+  }
+
+  void _openMouthView(BuildContext context, AppProvider app) {
+    app.analytics.logMouthViewOpened(
+      sound,
+      mirrorShown: app.settings.mirrorModeEnabled,
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        // Named so the route observer can report the screen view.
+        settings: const RouteSettings(name: 'watch_my_mouth'),
+        builder: (_) => MouthScreen(sound: sound),
+      ),
     );
   }
 }
