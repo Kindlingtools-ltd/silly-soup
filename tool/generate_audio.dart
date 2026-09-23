@@ -48,6 +48,12 @@ class Clip {
 Future<void> main(List<String> args) async {
   final dryRun = args.contains('--dry-run');
   final force = args.contains('--force');
+  // The nine pure-sound clips are off by default, and deliberately so: the
+  // voice reads a bare consonant as its letter name. Asking for "t, t, t"
+  // produced a clip byte-identical to one that says "tee, tee, tee", which
+  // is the exact mistake this app exists to avoid. They need a human.
+  // Pass --include-phonemes to generate them anyway, then listen to them.
+  final includePhonemes = args.contains('--include-phonemes');
   final voice = _option(args, '--voice') ?? defaultVoice;
   final language = _option(args, '--language') ?? defaultLanguage;
 
@@ -60,11 +66,23 @@ Future<void> main(List<String> args) async {
   final clips = _clips(
     json.decode(bankFile.readAsStringSync()) as Map<String, dynamic>,
   );
-  final todo = force ? clips : clips.where((clip) => !clip.exists).toList();
+  final eligible = includePhonemes
+      ? clips
+      : clips.where((clip) => clip.kind != 'phoneme').toList();
+  final todo = force
+      ? eligible
+      : eligible.where((clip) => !clip.exists).toList();
+
+  if (!includePhonemes) {
+    stdout.writeln(
+      'Skipping the ${clips.length - eligible.length} pure-sound clips: the '
+      'voice says letter names, not phonemes. --include-phonemes overrides.',
+    );
+  }
 
   stdout.writeln(
-    '${clips.length} clips, ${clips.length - todo.length} already on disk, '
-    '${todo.length} to generate.',
+    '${eligible.length} clips, ${eligible.length - todo.length} already on '
+    'disk, ${todo.length} to generate.',
   );
 
   if (dryRun) {

@@ -98,9 +98,11 @@ dart run tool/generate_audio.dart --force     # regenerate everything
 
 Generated clips are committed, and the tool skips anything already on disk — 88 files is not something to rebuild on every run. The voice is British (`en-GB`), and each phoneme clip carries an instruction not to add a vowel to the end of the sound, which is the one mistake that would make the app teach the wrong thing.
 
-> The tool currently stops with `approval_denied` from Agent IAP: `POST /xai/v1/tts` falls through to the gateway's default `ask` rule, is held in front of a person, and times out unanswered. Approve it when it appears, or add an allow rule for that path. Until then the app falls back to the device voice and the checklist stays at 88 outstanding.
+**79 of the 88 clips are recorded and committed** — all 78 words and the song, generated with x.ai's `eve` voice at `en-GB`.
 
-> The voice's accent is not settled by the request — x.ai exposes no voices list and its docs do not name accents — so "British voice" is confirmed by listening to the output, which is what the audit step is for.
+The nine pure-sound clips are **not** shipped, and the generator skips them unless you pass `--include-phonemes`. The voice reads a bare consonant as its letter name: asking it for `t, t, t` returned a clip byte-identical to one that says `tee, tee, tee`. Teaching "tee" as the sound /t/ is the one mistake this app cannot make, so those nine need a human voice. Until they exist the adult area lists them as missing and the device voice fills in.
+
+> Accent is not settled by the request — x.ai exposes no voices list and its docs do not name accents — so "British" is a judgement made by listening to the output.
 
 ## Project structure
 
