@@ -15,10 +15,16 @@ information if it did.
 
 ## Network calls
 
-The app makes **no network calls while it runs**. Specifically:
+The app makes **no network calls while it runs**, and every byte it does
+fetch comes from its own origin. Specifically:
 
-- Poppins is bundled in `assets/google_fonts` and `GoogleFonts.config.allowRuntimeFetching`
-  is set to `false` in `main.dart`, so no font is ever fetched from `fonts.gstatic.com`.
+- Poppins is bundled and declared as a font family in `pubspec.yaml`, so the
+  engine loads it from the app bundle rather than from `fonts.gstatic.com`.
+- The Noto fallback fonts the engine uses for emoji are vendored under
+  `web/fallback-fonts`, and `web/flutter_bootstrap.js` points
+  `fontFallbackBaseUrl` at them.
+- The CanvasKit/skwasm renderer is served from `/canvaskit` on this origin,
+  via `canvasKitBaseUrl` in `web/flutter_bootstrap.js`.
 - `web/index.html` loads no analytics tag, no tag manager, no font CDN and no
   third-party script. This is a deliberate difference from the other Kindling
   apps, which do carry an analytics tag.
@@ -26,6 +32,18 @@ The app makes **no network calls while it runs**. Specifically:
 - The web build is an installable PWA and works fully offline.
 
 The only network activity is downloading the app itself.
+
+### Why three of those bullets name a default we had to turn off
+
+Flutter's web loader fetches its renderer from `www.gstatic.com` and its
+fallback fonts from `fonts.gstatic.com` unless it is told otherwise, and it is
+not obvious from the app's own source that it is doing so. Until those three
+settings were added this app contacted Google on every cold start, which is
+exactly what this page said it did not do.
+
+The check that matters is not a code review. Load the app in a browser with
+an empty cache, open the network panel, and confirm every request is to this
+origin. Anything else is a bug, and a serious one.
 
 ## What is stored on the device
 

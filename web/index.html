@@ -45,6 +45,58 @@
 
   <link rel="canonical" href="https://silly-soup.kindlingtools.com/">
 
+  <!--
+    The engine is ~2.4MB and, left alone, the browser does not discover it
+    until flutter_bootstrap.js has been fetched, parsed and run — the two big
+    downloads used to start ~270ms and ~460ms in, on an otherwise idle link.
+    Preloading starts them with the first round trip instead.
+
+    Which bundle to warm depends on the browser: a WasmGC engine runs
+    main.dart.wasm, everything else falls back to main.dart.js, and preloading
+    the wrong one would waste more than it saves. So this does the same
+    one-line WasmGC probe flutter.js does, and injects accordingly. Keep the
+    probe identical to the loader's or the preload will miss.
+  -->
+  <script>
+    (function () {
+      var wasmGC = (function () {
+        try {
+          return WebAssembly.validate(
+            new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 95, 1, 120, 0]));
+        } catch (e) {
+          return false;
+        }
+      })();
+      // The loader reaches the .wasm files with a bare `fetch(url)`, which is
+      // mode "cors", credentials "same-origin". A preload only gets reused if
+      // it was made the same way, and `as="fetch"` without `crossorigin` is
+      // mode "no-cors" — so it misses and the file is fetched twice. Bare
+      // `crossorigin` is the anonymous form, which is the pair that matches.
+      var warm = wasmGC
+        ? ['main.dart.wasm', 'main.dart.mjs', 'canvaskit/skwasm.js', 'canvaskit/skwasm.wasm']
+        : ['main.dart.js', 'canvaskit/canvaskit.js', 'canvaskit/canvaskit.wasm'];
+      for (var i = 0; i < warm.length; i++) {
+        var link = document.createElement('link');
+        // main.dart.mjs is pulled in with a dynamic import(), and only
+        // `modulepreload` matches that — `preload as=script` is a different
+        // request and the browser fetches the file a second time.
+        if (/\.mjs$/.test(warm[i])) {
+          // Pulled in with import(); only modulepreload matches that.
+          link.rel = 'modulepreload';
+        } else if (/\.js$/.test(warm[i])) {
+          link.rel = 'preload';
+          link.as = 'script';
+        } else {
+          link.rel = 'preload';
+          link.as = 'fetch';
+          link.crossOrigin = 'anonymous';
+        }
+        link.href = warm[i];
+        document.head.appendChild(link);
+      }
+    })();
+  </script>
+
   <link rel="manifest" href="manifest.json">
 
   <!--
@@ -93,6 +145,84 @@
     }
     @media screen and (orientation: portrait) and (max-width: 900px) {
       .rotate-prompt { display: flex; }
+    }
+
+    /*
+      The boot splash.
+      Until this existed the app showed a bare cream rectangle for the whole
+      engine download, then a *second* Flutter-drawn spinner while the sound
+      bank loaded — so the first thing a nursery saw was several seconds of
+      nothing. This paints with the HTML, needs no font, no image and no
+      request, and hands over to the chef in one step.
+    */
+    .boot {
+      position: fixed;
+      inset: 0;
+      z-index: 99997;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: #FFF7EE;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      /* Fades out rather than snapping, so the handover is not a flash. */
+      transition: opacity 260ms ease-out;
+    }
+    .boot[hidden] { display: none; }
+    .boot.boot-done { opacity: 0; pointer-events: none; }
+    .boot h1 {
+      margin: 0;
+      font-size: 34px;
+      font-weight: 600;
+      color: #3C4759;
+      letter-spacing: 0.5px;
+    }
+    .boot p { margin: 0; font-size: 17px; color: #6B7A99; }
+
+    /* Pot and spoon, drawn rather than fetched. */
+    .boot svg { width: 132px; height: 132px; }
+    .boot .steam { animation: boot-steam 2.4s ease-in-out infinite; }
+    .boot .steam-b { animation-delay: 0.5s; }
+    .boot .steam-c { animation-delay: 1s; }
+    .boot .spoon { transform-origin: 93.5px 64px; animation: boot-stir 2.6s ease-in-out infinite; }
+
+    @keyframes boot-steam {
+      0%   { opacity: 0; transform: translateY(4px); }
+      40%  { opacity: 0.85; }
+      100% { opacity: 0; transform: translateY(-12px); }
+    }
+    @keyframes boot-stir {
+      0%, 100% { transform: rotate(-11deg); }
+      50%      { transform: rotate(11deg); }
+    }
+
+    .boot-bar {
+      width: 190px;
+      height: 8px;
+      border-radius: 4px;
+      background: #F0E2D2;
+      overflow: hidden;
+    }
+    .boot-bar i {
+      display: block;
+      height: 100%;
+      width: 40%;
+      border-radius: 4px;
+      background: #FF7A45;
+      animation: boot-slide 1.5s ease-in-out infinite;
+    }
+    @keyframes boot-slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(250%); }
+    }
+
+    /* A reduced-motion setting is a hard requirement here, splash included. */
+    @media (prefers-reduced-motion: reduce) {
+      .boot .steam, .boot .spoon, .boot-bar i { animation: none; }
+      .boot .steam { opacity: 0.7; }
+      .boot-bar i { width: 100%; }
+      .boot { transition: none; }
     }
 
     .install-banner {
@@ -152,6 +282,21 @@
         }, 3000);
       });
     }
+    // Called from Dart once the sound bank and the adult's settings are in
+    // and the first real frame has been painted — see
+    // lib/services/boot_splash_web.dart. Defined here unconditionally so the
+    // Dart side always has something to call.
+    window.sillySoupBootSplashDone = function () {
+      var boot = document.getElementById('boot-splash');
+      if (!boot || boot.dataset.done) return;
+      boot.dataset.done = '1';
+      boot.classList.add('boot-done');
+      var drop = function () { boot.hidden = true; };
+      boot.addEventListener('transitionend', drop, { once: true });
+      // transitionend never fires under prefers-reduced-motion.
+      setTimeout(drop, 400);
+    };
+
     function dismissInstallBanner() {
       var banner = document.querySelector('.install-banner');
       if (banner) banner.style.display = 'none';
@@ -160,6 +305,29 @@
   </script>
 </head>
 <body>
+  <!-- Removed by dismissBootSplash() in lib/services/boot_splash_web.dart. -->
+  <div class="boot" id="boot-splash">
+    <svg viewBox="0 0 128 128" aria-hidden="true">
+      <g fill="none" stroke="#F7A93B" stroke-width="6" stroke-linecap="round">
+        <path class="steam steam-a" d="M40 44c-6-7 6-12 0-20"/>
+        <path class="steam steam-b" d="M56 38c-6-7 6-12 0-20"/>
+        <path class="steam steam-c" d="M72 44c-6-7 6-12 0-20"/>
+      </g>
+      <g class="spoon">
+        <rect x="90" y="14" width="7" height="52" rx="3.5" fill="#C9A87C"/>
+        <ellipse cx="93.5" cy="13" rx="10" ry="7" fill="#E3C9A5"/>
+      </g>
+      <path d="M22 64h84v22a22 22 0 0 1-22 22H44a22 22 0 0 1-22-22z" fill="#4F5D75"/>
+      <rect x="14" y="56" width="100" height="13" rx="6.5" fill="#6B7A99"/>
+      <ellipse cx="64" cy="62" rx="44" ry="5.5" fill="#F7A93B"/>
+      <rect x="2" y="68" width="16" height="10" rx="5" fill="#6B7A99"/>
+      <rect x="110" y="68" width="16" height="10" rx="5" fill="#6B7A99"/>
+    </svg>
+    <h1>Silly Soup</h1>
+    <p>Warming up the pot&hellip;</p>
+    <div class="boot-bar" aria-hidden="true"><i></i></div>
+  </div>
+
   <div class="rotate-prompt">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>

@@ -1,10 +1,33 @@
 {{flutter_js}}
 {{flutter_build_config}}
 
-// Loaded without `serviceWorkerSettings` on purpose. Flutter's own service
-// worker only unregisters itself now, and registering it would evict ours at
-// the same scope. Silly Soup ships web/sw.js instead — see that file.
-_flutter.loader.load();
+// Silly Soup serves its own engine.
+//
+// Left to itself, the loader builds the CanvasKit/skwasm URL from
+// `engineRevision` and fetches ~1.2MB of renderer from
+// www.gstatic.com/flutter-canvaskit on every cold start. That is wrong here
+// for three separate reasons:
+//
+//   * privacy — PRIVACY.md promises no third-party request of any kind, and
+//     this app is used by three-year-olds. A cross-origin fetch hands a
+//     nursery's IP address to Google before the chef has said hello.
+//   * offline — sw.js only caches same-origin responses (it cannot read an
+//     opaque cross-origin one), so the renderer was never cached and the
+//     installed PWA could not boot without a network.
+//   * speed — a second origin means another DNS lookup and TLS handshake on
+//     the critical path, and the renderer cannot share the connection
+//     everything else is already using.
+//
+// `canvasKitBaseUrl` points it at the copy `flutter build web` already puts
+// in build/web/canvaskit. `fontFallbackBaseUrl` does the same for the Noto
+// fallback fonts the engine reaches for when a glyph is missing from Poppins
+// — see web/fallback-fonts/README.md.
+_flutter.loader.load({
+  config: {
+    canvasKitBaseUrl: 'canvaskit/',
+    fontFallbackBaseUrl: 'fallback-fonts/',
+  },
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {

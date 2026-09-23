@@ -1,5 +1,6 @@
 export 'audio_service.dart';
 export 'audio_sink.dart';
+export 'boot_splash.dart';
 export 'custom_content_store.dart';
 export 'recital_service.dart';
 export 'sound_pack_codec.dart';

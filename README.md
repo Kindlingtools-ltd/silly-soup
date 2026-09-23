@@ -119,7 +119,14 @@ assets/
 ├── data/sound_bank.json      # The word bank
 ├── audio/{phonemes,words,song}/
 ├── images/                   # Drop-in replacements for the emoji placeholders
-└── google_fonts/             # Poppins, bundled so nothing is fetched at runtime
+└── google_fonts/             # Poppins, declared as a font family in pubspec.yaml
+
+web/
+├── index.html                # Boot splash, engine preloads, PWA meta
+├── flutter_bootstrap.js      # Points the loader at our own engine and fonts
+├── fallback-fonts/           # Vendored Noto fallbacks — see its README
+├── _headers                  # Cache-Control for Cloudflare Pages
+└── sw.js                     # Offline cache
 
 tool/audio_checklist.dart     # What still needs recording
 ```
@@ -169,7 +176,58 @@ Flutter's own service worker is now a no-op that unregisters itself, so the app 
 
 CI stamps the commit SHA into `sw.js` after the build. Without that step the cache name never changes and a deploy can pair a new `index.html` with an old `main.dart.wasm`.
 
-Verified in Chromium: load, go offline, reload, app still boots.
+Verified in Chromium: load, go offline, reload, app still boots — including
+the renderer and the emoji fonts, which is new. Both used to come from Google's
+CDN, and a service worker cannot cache a cross-origin response it is not
+allowed to read, so "offline" previously depended on the browser's HTTP cache
+happening to still hold them.
+
+## Load performance
+
+Flutter web has a large floor — about 2.1&nbsp;MB compressed before the app's
+own code — so the work here is spending it once and showing something while
+it arrives.
+
+- **The page paints immediately.** `web/index.html` carries an inline SVG boot
+  splash, so the first frame is at ~120&nbsp;ms rather than a blank rectangle
+  until the engine is up. Dart hides it (`lib/services/boot_splash.dart`) only
+  once the sound bank is loaded and the home screen has drawn, which also
+  removed the second, Flutter-drawn spinner that used to flash behind it.
+- **The engine is preloaded.** The browser used to discover `main.dart.wasm`
+  only after fetching, parsing and running `flutter_bootstrap.js`. `index.html`
+  now feature-detects WasmGC inline and preloads the right bundle in the first
+  round trip. `as="fetch"` preloads need `crossorigin` to match the loader's
+  own `fetch()`; without it the browser downloads everything twice.
+- **Nothing comes from Google.** See [PRIVACY.md](PRIVACY.md) — this is a
+  privacy fix first, but it also takes a second DNS lookup and TLS handshake
+  off the critical path and lets `sw.js` cache the renderer.
+- **`google_fonts` is gone.** The package carries a generated table of every
+  family Google publishes so it can look one of them up at runtime. Bundling
+  Poppins and declaring it in `pubspec.yaml` does the same job and took
+  **1.0&nbsp;MB** out of `main.dart.wasm` (3.28&nbsp;MB → 2.24&nbsp;MB
+  uncompressed).
+- **`web/_headers`** gives the engine and the fonts a real cache lifetime.
+  Cloudflare Pages otherwise sends `max-age=0, must-revalidate` for every file.
+
+Measured in headless Chromium against a local server that mimics Pages
+(brotli, ETags), throttled to 8&nbsp;Mbit/s with 60&nbsp;ms RTT:
+
+| | Before | After |
+|---|---|---|
+| Something on screen | 3.1 s | **0.12 s** |
+| App usable | 3.1 s | 2.6 s |
+| Transferred | 2591 KiB | **2162 KiB** |
+| Of that, from Google | 1393 KiB | **0** |
+| Second visit | full revalidation | **0 KiB, 0.7 s** |
+| Offline | renderer not cached | **boots in 0.6 s** |
+
+One thing left on the table: Cloudflare compresses on the fly at a middling
+brotli quality, so `skwasm.wasm` leaves Pages at ~1.49&nbsp;MB where gstatic
+served the same bytes at ~1.20&nbsp;MB precompressed at quality 11. Serving a
+precompressed copy would win roughly 300&nbsp;KiB, but it means storing
+brotli bytes under the plain filename and asserting `Content-Encoding` in
+`_headers`, which breaks any client that does not accept brotli. Not worth it
+for this app; noted in case the floor ever matters more.
 
 ## Deployment
 
