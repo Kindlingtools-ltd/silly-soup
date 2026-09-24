@@ -1,7 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/providers.dart';
@@ -12,10 +11,16 @@ import 'utils/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Poppins is bundled under assets/google_fonts. Runtime fetching is off so
-  // the app never calls out to fonts.gstatic.com — no network calls at all is
-  // a hard requirement here, not a nicety. See PRIVACY.md.
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // Poppins is declared as a font family in pubspec.yaml, so the engine loads
+  // it from the bundle and never calls out to fonts.gstatic.com. The
+  // analytics tag is the one call this app makes on purpose; a font CDN it
+  // never asked for is not. See PRIVACY.md.
+  // The google_fonts package used to register this licence for us.
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(const [
+      'Poppins',
+    ], await rootBundle.loadString('assets/google_fonts/OFL.txt'));
+  });
 
   // Landscape suits a shared tablet on a table between an adult and a child,
   // but a phone is held upright and locking it to landscape left a child
@@ -98,41 +103,31 @@ class _AppLoaderState extends State<AppLoader> {
     }
   }
 
+  /// Takes the page's splash away once the home screen has actually painted.
+  ///
+  /// A frame later than `isInitialised`, deliberately: hiding the splash the
+  /// moment the future completes uncovers a scaffold that has not been drawn
+  /// yet, which reads as a flicker.
+  void _handOverFromSplash() {
+    if (_splashDismissed) return;
+    _splashDismissed = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => dismissBootSplash());
+  }
+
+  bool _splashDismissed = false;
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, app, _) {
         if (!app.isInitialised) {
-          return Scaffold(
-            backgroundColor: SoupColours.background,
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SvgPicture.asset(
-                    'assets/kindling_logo.svg',
-                    width: 80,
-                    height: 80,
-                  ),
-                  const SizedBox(height: 24),
-                  Text('Silly Soup', style: SoupTypography.heading(context)),
-                  const SizedBox(height: 16),
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        SoupColours.primary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+          // The page's own splash is still on top of this, so drawing a
+          // second logo and spinner here only ever showed as a flash between
+          // the two. Match the splash's background and let it keep the stage.
+          return const ColoredBox(color: SoupColours.background);
         }
 
+        _handOverFromSplash();
         return const HomeScreen();
       },
     );

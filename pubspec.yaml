@@ -21,10 +21,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Typography. Poppins is bundled under assets/google_fonts so the app never
-  # reaches fonts.gstatic.com at runtime — see PRIVACY.md.
-  google_fonts: ^8.2.1
-
   # State management
   provider: ^6.1.5+1
 
@@ -64,5 +60,22 @@ flutter:
     - assets/audio/phonemes/
     - assets/audio/words/
     - assets/audio/song/
-    - assets/google_fonts/
+    # Only the licence: the .ttf files are declared under `fonts:` below, and
+    # listing the directory here as well would bundle all three a second time.
+    - assets/google_fonts/OFL.txt
     - assets/kindling_logo.svg
+
+  # Poppins, bundled. It used to be loaded through the google_fonts package,
+  # which carries a generated table of every family Google publishes in order
+  # to look one of them up — dead weight in a bundle that a nursery tablet has
+  # to download before it can play. Declaring the family here is what the
+  # package was doing anyway, minus the table and minus the dependency.
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/google_fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/google_fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/google_fonts/Poppins-SemiBold.ttf
+          weight: 600

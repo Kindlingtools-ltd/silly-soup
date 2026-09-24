@@ -20,7 +20,6 @@
 // ```
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'kindling_colours.dart';
 import 'kindling_theme_config.dart';
@@ -60,6 +59,10 @@ class KindlingTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      // Without this, any text the app does not style explicitly falls to
+      // Material's default family and the engine fetches Roboto — 62KB from
+      // fonts.gstatic.com, on a page that promises no third-party requests.
+      fontFamily: config.fontFamily,
       scaffoldBackgroundColor: KindlingColours.background,
       colorScheme: ColorScheme.light(
         primary: colours.primary,
@@ -79,8 +82,8 @@ class KindlingTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          textStyle: GoogleFonts.getFont(
-            config.fontFamily,
+          textStyle: TextStyle(
+            fontFamily: config.fontFamily,
             fontSize: 18,
             fontWeight: FontWeight.w500,
           ),
@@ -88,8 +91,8 @@ class KindlingTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          textStyle: GoogleFonts.getFont(
-            config.fontFamily,
+          textStyle: TextStyle(
+            fontFamily: config.fontFamily,
             fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
@@ -99,8 +102,8 @@ class KindlingTheme {
         elevation: 0,
         backgroundColor: KindlingColours.background,
         foregroundColor: KindlingColours.textPrimary,
-        titleTextStyle: GoogleFonts.getFont(
-          config.fontFamily,
+        titleTextStyle: TextStyle(
+          fontFamily: config.fontFamily,
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: KindlingColours.textPrimary,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -77,25 +79,36 @@ class HomeScreen extends StatelessWidget {
                             // Centred in the space that is left, and it
                             // scrolls when a long list of sounds needs more
                             // room than a phone has.
-                            : Center(
-                                child: SingleChildScrollView(
-                                  child: Wrap(
-                                    spacing: SoupLayout.soundCardSpacing,
-                                    runSpacing: SoupLayout.soundCardSpacing,
-                                    alignment: WrapAlignment.center,
-                                    children: [
-                                      for (final sound in sounds)
-                                        SoundCard(
-                                          sound: sound,
-                                          showLetter: app.settings.showLetters,
-                                          scale: layout.soundCardScale * scale,
-                                          width: layout.soundCardWidth,
-                                          onTap: () =>
-                                              _openSoup(context, sound),
-                                        ),
-                                    ],
-                                  ),
-                                ),
+                            : LayoutBuilder(
+                                builder: (context, box) {
+                                  final cardScale = _soundCardScale(
+                                    layout: layout,
+                                    scale: scale,
+                                    sounds: sounds.length,
+                                    available: box.maxHeight,
+                                  );
+                                  return Center(
+                                    child: SingleChildScrollView(
+                                      child: Wrap(
+                                        spacing: SoupLayout.soundCardSpacing,
+                                        runSpacing: SoupLayout.soundCardSpacing,
+                                        alignment: WrapAlignment.center,
+                                        children: [
+                                          for (final sound in sounds)
+                                            SoundCard(
+                                              sound: sound,
+                                              showLetter:
+                                                  app.settings.showLetters,
+                                              scale: cardScale,
+                                              width: layout.soundCardWidth,
+                                              onTap: () =>
+                                                  _openSoup(context, sound),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                       ),
                       SizedBox(height: 8 * scale),
@@ -122,6 +135,34 @@ class HomeScreen extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+
+  /// Shrinks the cards until the whole set fits the room the picker has.
+  ///
+  /// The picker scrolls, so a row that does not fit is not an overflow and
+  /// nothing reports it — it is simply a sound sitting under the bottom
+  /// edge, on a screen that gives a three-year-old no sign it is there. A
+  /// smaller card is a far better answer than a hidden one. Below
+  /// [SoundCard.shrinkFloor] the tap-target minimum takes over and shrinking
+  /// stops helping, so that is where this stops.
+  static double _soundCardScale({
+    required SoupLayout layout,
+    required double scale,
+    required int sounds,
+    required double available,
+  }) {
+    final natural = layout.soundCardScale * scale;
+    if (!available.isFinite || sounds == 0) return natural;
+
+    final rows = (sounds / layout.soundColumns).ceil();
+    final gaps = SoupLayout.soundCardSpacing * (rows - 1);
+    if (SoundCard.heightFor(natural) * rows + gaps <= available) return natural;
+
+    final perRow = (available - gaps) / rows;
+    return math.max(
+      SoundCard.shrinkFloor,
+      math.min(natural, perRow / (SoupMetrics.minTapTarget * 1.6)),
     );
   }
 

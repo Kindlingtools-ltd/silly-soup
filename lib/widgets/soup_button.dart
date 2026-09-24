@@ -37,10 +37,17 @@ class _SoupButtonState extends State<SoupButton> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
-    final background = widget.outlined
+    final background = !enabled
+        ? SoupColours.disabled
+        : widget.outlined
         ? SoupColours.surface
         : (widget.backgroundColor ?? SoupColours.primary);
-    final foreground = widget.outlined
+    // A filled button keeps its white label when it is disabled unless this
+    // says otherwise, and white on the disabled fill is not a colour, it is
+    // a disappearance.
+    final foreground = !enabled
+        ? SoupColours.disabledText
+        : widget.outlined
         ? SoupColours.textPrimary
         : (widget.foregroundColor ?? SoupColours.textOnBrand);
     final height = SoupMetrics.minTapTarget * widget.scale;
@@ -63,7 +70,7 @@ class _SoupButtonState extends State<SoupButton> {
             constraints: BoxConstraints(minWidth: height),
             padding: EdgeInsets.symmetric(horizontal: 28 * widget.scale),
             decoration: BoxDecoration(
-              color: enabled ? background : SoupColours.border,
+              color: background,
               borderRadius: BorderRadius.circular(
                 SoupMetrics.cardRadius * widget.scale,
               ),
