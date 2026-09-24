@@ -66,7 +66,11 @@ Worth checking on the device itself:
 1. **Both orientations** — in landscape the pot and the shelf sit side by side; in portrait the pot sits above the shelf. The pantry is on screen either way, with a whole row of ingredients reachable without scrolling.
 2. **Dragging** — drag a picture from the shelf into the pot. The pot grows slightly as the item comes over it.
 3. **Tapping** — tap a picture instead. It should go in just the same. (Switch to "Tap only" in the adult area to check the simpler path.)
-4. **Tap targets** — nothing you need to hit is under 72&nbsp;px.
+4. **Tap targets** — everything a *child* is asked to hit is at least
+   72&nbsp;px: the sound cards and every ingredient in the pantry. The adult
+   chrome — back, the song, stop, watch my mouth, and the toggles in the
+   grown-ups' area — is Flutter's 48&nbsp;px icon button, which clears both
+   platform minimums but is not 72.
 5. **The adult gate** — press and hold the cog in the corner for three seconds. A quick tap must do nothing.
 6. **Mirror mode** — turn it on in the adult area, then open "Watch my mouth". The browser asks for camera permission; the view is live only and there is no capture button.
 7. **Reduced motion** — turn on the device's reduce-motion setting, or the toggle in the adult area, and check the soup stops bobbing.

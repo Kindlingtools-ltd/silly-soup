@@ -249,49 +249,108 @@ class _SoundRow extends StatelessWidget {
     final settings = app.settings;
     final enabled = settings.isSoundEnabled(sound.id);
     final thin = wordCount < SoundBank.minWordsPerSound;
+    final count = '$wordCount ${wordCount == 1 ? 'word' : 'words'}';
 
-    return ListTile(
-      leading: SizedBox(
-        // Wide enough for a bounced stop written out in full: "b-b-b" wrapped
-        // and had its second line clipped at 56.
-        width: 92,
-        child: Text(
-          sound.spokenPureSound,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: SoupTypography.heading(context).copyWith(fontSize: 20),
+    final controls = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_upward_rounded),
+          onPressed: canMoveUp ? () => onMove(-1) : null,
         ),
-      ),
-      title: Text('$wordCount ${wordCount == 1 ? 'word' : 'words'}'),
-      subtitle: thin
-          ? Text(
-              'Too few words to fill the pantry.'
-              '${sound.notes.isEmpty ? '' : ' ${sound.notes}'}',
-              style: SoupTypography.label(context)
-                  .copyWith(color: SoupColours.primary),
-            )
-          : (sound.notes.isEmpty ? null : Text(sound.notes)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_upward_rounded),
-            onPressed: canMoveUp ? () => onMove(-1) : null,
+        IconButton(
+          icon: const Icon(Icons.arrow_downward_rounded),
+          onPressed: canMoveDown ? () => onMove(1) : null,
+        ),
+        Switch(
+          value: enabled,
+          onChanged: (value) {
+            final ids = [...settings.enabledSoundIds];
+            value ? ids.add(sound.id) : ids.remove(sound.id);
+            app.updateSettings(settings.copyWith(enabledSoundIds: ids));
+          },
+        ),
+      ],
+    );
+
+    final note = thin
+        ? 'Too few words to fill the pantry.'
+              '${sound.notes.isEmpty ? '' : ' ${sound.notes}'}'
+        : sound.notes;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The sound written out on the left, the arrows and the switch on the
+        // right, and the row's own padding come to 312 logical pixels before
+        // a word of the note is drawn. On a 360px Android phone that left
+        // about twenty for "10 words", which wrapped one character to a line
+        // and grew every row in the list into a tower of letters. Nothing
+        // overflowed, so no overflow test caught it — it was legal,
+        // unreadable layout. Below this the row stacks instead.
+        final tight = constraints.maxWidth < 560;
+
+        if (tight) {
+          // Stacked, not a ListTile. The arrows and the switch take 156 of a
+          // 296px row and this app's type is deliberately large, so anything
+          // sharing that line with them gets about seven characters to play
+          // with — which is how "10 words" became a column of letters. On
+          // their own line, the sound and its note get the whole width.
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        sound.spokenPureSound,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SoupTypography.heading(context)
+                            .copyWith(fontSize: 20),
+                      ),
+                    ),
+                    controls,
+                  ],
+                ),
+                Text(
+                  note.isEmpty ? count : '$count — $note',
+                  style: thin
+                      ? SoupTypography.label(context)
+                            .copyWith(color: SoupColours.primary)
+                      : null,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListTile(
+          leading: SizedBox(
+            // Wide enough for a bounced stop written out in full: "b-b-b"
+            // wrapped and had its second line clipped at 56.
+            width: 92,
+            child: Text(
+              sound.spokenPureSound,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: SoupTypography.heading(context).copyWith(fontSize: 20),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.arrow_downward_rounded),
-            onPressed: canMoveDown ? () => onMove(1) : null,
-          ),
-          Switch(
-            value: enabled,
-            onChanged: (value) {
-              final ids = [...settings.enabledSoundIds];
-              value ? ids.add(sound.id) : ids.remove(sound.id);
-              app.updateSettings(settings.copyWith(enabledSoundIds: ids));
-            },
-          ),
-        ],
-      ),
+          title: Text(count),
+          subtitle: note.isEmpty
+              ? null
+              : Text(
+                  note,
+                  style: thin
+                      ? SoupTypography.label(context)
+                            .copyWith(color: SoupColours.primary)
+                      : null,
+                ),
+          trailing: controls,
+        );
+      },
     );
   }
 }
