@@ -185,17 +185,26 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      final screen = Offset.zero & size;
+      // The picker is inside a scroll view, so "on screen" means inside what
+      // that view actually shows, not merely inside the window.
+      final visible = tester
+          .getRect(find.byType(SingleChildScrollView))
+          .intersect(Offset.zero & size);
+
       final cards = find.byType(SoundCard);
       expect(cards, findsWidgets);
       for (final card in cards.evaluate()) {
         final rect = tester.getRect(find.byWidget(card.widget));
         expect(
-          screen.contains(rect.topLeft) && screen.contains(rect.bottomRight),
+          rect.top >= visible.top - 0.01 &&
+              rect.bottom <= visible.bottom + 0.01 &&
+              rect.left >= visible.left - 0.01 &&
+              rect.right <= visible.right + 0.01,
           isTrue,
           reason:
-              'a sound card at $rect is off a ${size.width.toInt()}x'
-              '${size.height.toInt()} screen',
+              'a sound card at $rect is outside the $visible the picker '
+              'shows on a ${size.width.toInt()}x${size.height.toInt()} '
+              'screen, so a child would have to scroll to find it',
         );
       }
 
