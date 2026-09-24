@@ -342,7 +342,7 @@ class _MissingRecordings extends StatelessWidget {
       subtitle: missing.isEmpty
           ? 'Every clip asked for so far has played from a recording.'
           : 'These clips are not in the app yet, so the device voice read '
-                'them instead. Run `dart run tool/audio_checklist.dart` for the '
+                'them instead. Run `uv run tool/build_audio.py --audit` for the '
                 'full list.',
       child: Column(
         children: [

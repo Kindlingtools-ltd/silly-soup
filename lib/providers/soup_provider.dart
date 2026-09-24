@@ -104,9 +104,8 @@ class SoupProvider extends ChangeNotifier {
   Future<void> repeatSound() async {
     final sound = _session?.sound;
     if (sound == null) return;
-    _setChefLine('My sound today is ${RecitalService.pureSound(sound)}.');
     _analytics.logSoundRepeated(sound);
-    await _audio.playSound(sound);
+    await _say(ChefScript.soundOfTheDay(sound));
   }
 
   /// The chef makes a soup first, so the child has seen it done.
@@ -119,8 +118,7 @@ class SoupProvider extends ChangeNotifier {
     _isChefBusy = true;
     _analytics.logChefModelled(sound);
     _update(session.withStage(SoupStage.chefModelling));
-    _setChefLine('Watch me make my silly soup!');
-    await _audio.speak('Watch me make my silly soup!');
+    await _say(ChefScript.watchMe);
     if (!_isCurrent(generation)) return;
 
     for (final word in session.chefSoup) {
@@ -129,18 +127,15 @@ class SoupProvider extends ChangeNotifier {
       // The item goes in as it is named, so the child sees the pot fill up
       // one thing at a time. Showing all three at once demonstrates nothing.
       _chefItemsShown++;
-      _setChefLine(RecitalService.commentateOnItem(word, sound));
       notifyListeners();
-      await _audio.playEmphasisedWord(word, sound);
+      await _say(ChefScript.commentateOnItem(word, sound));
       if (!_isCurrent(generation)) return;
       await _stir(generation);
     }
 
     await _pause(const Duration(milliseconds: 600));
     if (!_isCurrent(generation)) return;
-    final recital = RecitalService.reciteList(session.chefSoup, sound);
-    _setChefLine(recital);
-    await _audio.speak(recital);
+    await _say(ChefScript.reciteList(session.chefSoup, sound));
     if (!_isCurrent(generation)) return;
 
     await _pause(const Duration(milliseconds: 900));
@@ -161,8 +156,7 @@ class SoupProvider extends ChangeNotifier {
     _isChefBusy = false;
     _analytics.logChildsTurnStarted(session.sound);
     _update(session.withStage(SoupStage.childsTurn));
-    _setChefLine('Now you make a silly soup!');
-    _audio.speak('Now you make a silly soup!');
+    _say(ChefScript.nowYou);
   }
 
   /// The child puts an item in. Always accepted, always celebrated.
@@ -182,8 +176,7 @@ class SoupProvider extends ChangeNotifier {
       word: word,
       potSize: next.pot.length,
     );
-    _setChefLine(RecitalService.commentateOnItem(word, sound));
-    await _audio.playEmphasisedWord(word, sound);
+    await _say(ChefScript.commentateOnItem(word, sound));
     if (!_isCurrent(generation)) return;
 
     await _stir(generation);
@@ -191,9 +184,7 @@ class SoupProvider extends ChangeNotifier {
 
     final current = _session;
     if (current == null) return;
-    final recital = RecitalService.reciteList(current.pot, sound);
-    _setChefLine(recital);
-    await _audio.speak(recital);
+    await _say(ChefScript.reciteList(current.pot, sound));
     if (!_isCurrent(generation)) return;
 
     // Praise every few items rather than after each one, so it stays warm
@@ -239,12 +230,7 @@ class SoupProvider extends ChangeNotifier {
       ingredientCount: session.pot.length,
       duration: _elapsed(),
     );
-    final recital = RecitalService.reciteFinishedSoup(
-      session.pot,
-      session.sound,
-    );
-    _setChefLine(recital);
-    await _audio.speak(recital);
+    await _say(ChefScript.reciteFinishedSoup(session.pot, session.sound));
     if (!_isCurrent(generation)) return;
 
     await _pause(const Duration(milliseconds: 700));
@@ -297,10 +283,13 @@ class SoupProvider extends ChangeNotifier {
     return startedAt == null ? Duration.zero : _now().difference(startedAt);
   }
 
-  Future<void> _praise() async {
-    final line = RecitalService.praise(_praiseCounter++);
-    _setChefLine(line);
-    await _audio.speak(line);
+  Future<void> _praise() => _say(ChefScript.praise(_praiseCounter++));
+
+  /// Put a line on screen and say it. The two are the same thing: the words
+  /// the chef speaks are the words a watching adult reads out.
+  Future<void> _say(ChefLine line) {
+    _setChefLine(line.text);
+    return _audio.say(line);
   }
 
   Future<void> _speakSound(int generation, PhonemeSound sound) async {
@@ -309,8 +298,7 @@ class SoupProvider extends ChangeNotifier {
     if (sound.action.isEmpty) return;
     await _pause(const Duration(milliseconds: 500));
     if (!_isCurrent(generation)) return;
-    _setChefLine(sound.action);
-    await _audio.speak(sound.action);
+    await _say(ChefScript.soundAction(sound));
   }
 
   Future<void> _stir(int generation) async {

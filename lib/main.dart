@@ -23,16 +23,22 @@ Future<void> main() async {
   // out for the space it is given instead.
   await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
 
+  // Which recordings this build has. Read once, here, because a line made of
+  // several clips has to be known to be complete before it starts playing.
+  final clips = await ClipLibrary.load();
+
   // One service, shared by the provider that reports what happens in the
   // kitchen and the observer that reports which screen is up.
-  runApp(SillySoupApp(analytics: AnalyticsService()));
+  runApp(SillySoupApp(analytics: AnalyticsService(), clips: clips));
 }
 
 class SillySoupApp extends StatelessWidget {
-  SillySoupApp({super.key, required this.analytics})
-    : _routeObserver = AnalyticsRouteObserver(analytics);
+  SillySoupApp({super.key, required this.analytics, ClipLibrary? clips})
+    : clips = clips ?? const ClipLibrary.empty(),
+      _routeObserver = AnalyticsRouteObserver(analytics);
 
   final AnalyticsService analytics;
+  final ClipLibrary clips;
   final AnalyticsRouteObserver _routeObserver;
 
   @override

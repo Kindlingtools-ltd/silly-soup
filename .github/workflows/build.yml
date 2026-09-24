@@ -92,12 +92,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # Exits non-zero while clips are outstanding, which is the normal state
-      # until the recordings are made. Reported, not enforced — the app falls
-      # back to the device voice and logs what is missing.
-      - name: List outstanding recordings
-        continue-on-error: true
-        run: dart run tool/audio_checklist.dart
+      # Nothing to report here any more: every clip the app can ask for is
+      # committed, and test/data/audio_assets_test.dart fails the build if one
+      # goes missing or stops agreeing with assets/audio/manifest.json.
 
   build-web:
     name: Build & Deploy Web

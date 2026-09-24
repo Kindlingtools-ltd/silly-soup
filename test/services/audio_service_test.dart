@@ -70,20 +70,79 @@ void main() {
     });
   });
 
-  group('the chef\'s own voice', () {
-    test('emphasis is always spoken — there is no clip for "sssun"', () async {
+  group('a chef line is played, not spoken', () {
+    final commentary = ChefScript.commentateOnItem(word('sun', 's'), soundS);
+
+    test('plays every clip in the line, in order', () async {
       final sink = RecordingAudioSink(
-        availableAssets: {'assets/audio/words/sun.mp3'},
+        availableAssets: {
+          'assets/audio/lines/in_goes.mp3',
+          'assets/audio/list/sun.mp3',
+          'assets/audio/list/sock.mp3',
+        },
       );
+      final audio = AudioService(
+        sink: sink,
+        clips: ClipLibrary.withClips(const {
+          'assets/audio/lines/in_goes.mp3',
+          'assets/audio/list/sun.mp3',
+          'assets/audio/list/sock.mp3',
+        }),
+      );
+
+      await audio.say(
+        ChefScript.reciteList([word('sun', 's'), word('sock', 's')], soundS),
+      );
+
+      expect(sink.playedAssets, [
+        'assets/audio/lines/in_goes.mp3',
+        'assets/audio/list/sun.mp3',
+        'assets/audio/list/sock.mp3',
+      ]);
+      expect(sink.spokenText, isEmpty);
+    });
+
+    test('speaks the whole line when a recording is missing', () async {
+      final sink = RecordingAudioSink();
       final audio = AudioService(sink: sink);
 
-      await audio.playEmphasisedWord(
-        word('sun', 's', audio: 'words/sun.mp3'),
-        soundS,
-      );
+      await audio.say(commentary);
 
-      expect(sink.spokenText, ['sssun']);
       expect(sink.playedAssets, isEmpty);
+      expect(sink.spokenText, ['In goes a sssun!']);
+      expect(audio.missingClips, ['assets/audio/commentary/sun.mp3']);
+    });
+
+    test(
+      'a part-recorded line is spoken rather than played in pieces',
+      () async {
+        // Half a recital is worse than none: the child hears "In goes" and
+        // then silence, and speaking it afterwards repeats what they heard.
+        final sink = RecordingAudioSink(
+          availableAssets: {'assets/audio/lines/in_goes.mp3'},
+        );
+        final audio = AudioService(
+          sink: sink,
+          clips: ClipLibrary.withClips(const {
+            'assets/audio/lines/in_goes.mp3',
+          }),
+        );
+
+        await audio.say(ChefScript.reciteList([word('sun', 's')], soundS));
+
+        expect(sink.playedAssets, isEmpty);
+        expect(sink.spokenText, ['In goes a sssun…']);
+      },
+    );
+
+    test('an empty line asks the sink for nothing at all', () async {
+      final sink = RecordingAudioSink();
+      final audio = AudioService(sink: sink);
+
+      await audio.say(ChefScript.reciteList(const [], soundS));
+
+      expect(sink.playedAssets, isEmpty);
+      expect(sink.spokenText, isEmpty);
     });
   });
 
@@ -165,19 +224,21 @@ void main() {
     });
   });
 
-  test('a silent device plays the recorded word rather than nothing', () async {
+  test('a silent device still plays its recordings', () async {
     final sink = RecordingAudioSink(
-      availableAssets: {'assets/audio/words/sun.mp3'},
+      availableAssets: {'assets/audio/commentary/sun.mp3'},
     );
-    final audio = AudioService(sink: sink);
-    final sun = word('sun', 's', audio: 'words/sun.mp3');
+    final audio = AudioService(
+      sink: sink,
+      clips: ClipLibrary.withClips(const {'assets/audio/commentary/sun.mp3'}),
+    );
 
-    // Nothing is spoken until the voice is known to be silent.
-    await audio.playEmphasisedWord(sun, soundS);
-    expect(sink.playedAssets, isEmpty);
-    expect(sink.spokenText, ['sssun']);
+    // A device whose voice does not work is exactly the device that needs the
+    // recordings, and they do not go through the voice at all.
+    await audio.say(ChefScript.commentateOnItem(word('sun', 's'), soundS));
+    expect(sink.playedAssets, ['assets/audio/commentary/sun.mp3']);
+    expect(sink.spokenText, isEmpty);
 
-    // Once it is, the recording carries it instead.
     final silent = AudioService(sink: SilentSink());
     await silent.speak('one');
     await silent.speak('two');
