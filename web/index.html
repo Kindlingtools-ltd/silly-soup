@@ -6,6 +6,18 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=Edge">
 
+  <!--
+    The Flutter engine writes exactly this tag itself once it boots. Until it
+    does, a phone has nothing to go on and falls back to a 980px layout
+    viewport, scaled down to fit — so the boot splash below, the whole point
+    of which is to be the first thing a child sees, was drawn at 37% size on a
+    360px phone and 82% on an 800px tablet. Only a screen at least 980px wide
+    escaped it, which is why an iPad looked right.
+
+    Same content as the engine's tag, so nothing moves when it takes over.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+
   <title>Silly Soup | Phase One phonics for EYFS</title>
   <meta name="title" content="Silly Soup | Phase One phonics for EYFS">
   <meta name="description" content="A free alliteration game for Early Years children aged 3 to 5, based on the Silly Soup activity from Letters and Sounds Phase One. Sounds and pictures, no letters, no scores.">
@@ -250,16 +262,6 @@
       transition: opacity 200ms ease;
     }
     .install-banner span { flex: 1; }
-    .install-banner button {
-      background: transparent;
-      color: white;
-      border: none;
-      padding: 8px;
-      font-size: 18px;
-      opacity: 0.7;
-      cursor: pointer;
-      pointer-events: auto;
-    }
     @media (prefers-reduced-motion: reduce) {
       .install-banner { transition: none; }
     }
@@ -346,9 +348,16 @@
     <div class="boot-bar" aria-hidden="true"><i></i></div>
   </div>
 
-  <div class="install-banner">
+  <!--
+    No close button. It was the one part of the banner that took taps, and it
+    sat in the top-right corner directly over the cog that opens the grown-ups'
+    area — and over "stop the sound" in the kitchen — on every screen size. A
+    grown-up holding the cog while the hint was up dismissed the hint instead,
+    and the three-second hold never started. The hint already goes away on the
+    first touch anywhere and after eight seconds, so nothing is lost.
+  -->
+  <div class="install-banner" aria-hidden="true">
     <span>Tap Share, then "Add to Home Screen"</span>
-    <button class="close-btn" onclick="dismissInstallBanner()" aria-label="Dismiss">✕</button>
   </div>
 
   <noscript>
