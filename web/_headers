@@ -1,56 +1,21 @@
 # Cloudflare Pages response headers.
 #
-# Without this file Pages sends `public, max-age=0, must-revalidate` for
-# everything, so a classroom that opens the app each morning re-validates all
-# 2.6MB of it — 18 conditional requests before the chef appears, even when
-# nothing has changed.
+# Flutter's web output has no content hashes in it: every build ships the same
+# main.dart.wasm, main.dart.js, canvaskit/ and assets/ URLs as the last one.
+# There is therefore no filename a browser can use to tell two builds apart,
+# and anything cached without revalidation is cached until it is evicted — a
+# nursery tablet would keep last term's app however often it was reloaded.
 #
-# Flutter does not put a content hash in its output filenames, so anything
-# that changes from build to build cannot be cached immutably by URL. The
-# split below follows that line: build outputs revalidate, and only files
-# whose contents are pinned to something else get a long life.
-
-# The shell decides which build the browser is on, so it must never be stale.
-/
-  Cache-Control: no-cache
-/index.html
-  Cache-Control: no-cache
-/flutter_bootstrap.js
-  Cache-Control: no-cache
-/sw.js
-  Cache-Control: no-cache
-/manifest.json
-  Cache-Control: no-cache
-
-# Rebuilt on every commit under a stable name. `no-cache` means "revalidate",
-# not "do not store": a 304 here costs one round trip instead of 1.2MB.
-/main.dart.wasm
-  Cache-Control: no-cache
-/main.dart.js
-  Cache-Control: no-cache
-/main.dart.mjs
-  Cache-Control: no-cache
-
-# The engine. These bytes are pinned to the Flutter revision in
-# .github/workflows/build.yml, not to our commits, so they are worth keeping
-# for a week and revalidating in the background rather than in front of a
-# three-year-old.
-/canvaskit/*
-  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
-
-# Fonts are content-pinned: the Noto fallbacks carry a version in their path,
-# and Poppins only changes if we replace the file.
-/fallback-fonts/*
-  Cache-Control: public, max-age=31536000, immutable
-/assets/assets/google_fonts/*
-  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
-
-# Word bank, artwork and recordings: swapped by a deploy, so revalidate, but
-# serve the cached copy meanwhile.
-/assets/*
-  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
-
-/icons/*
-  Cache-Control: public, max-age=604800
-/favicon.png
-  Cache-Control: public, max-age=604800
+# So: one rule, covering everything, requiring a conditional request before
+# any stored copy is reused. The cost is an ETag round trip, and even that is
+# rare, because sw.js serves the app out of the Cache API and only goes to the
+# network when a new build is being installed.
+#
+# /sw.js is the one that really matters. It is how a new build is noticed at
+# all, so it must never be answered from a cache.
+#
+# Long-lived immutable caching would be the usual answer here, and it is the
+# wrong one for this output: with no hash in the name, the URL that would be
+# pinned for a year is the same URL the next deploy publishes to.
+/*
+  Cache-Control: public, max-age=0, must-revalidate

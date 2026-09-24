@@ -75,6 +75,22 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: false
 
+  web-tests:
+    name: Web tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      # The service worker and the update flow in web/ decide which build a
+      # nursery is running, and `flutter test` cannot see either of them.
+      # No dependencies: the harness is the runtime's own fetch and Response.
+      - name: Run web tests
+        run: bun test test/web
+
   audio-checklist:
     name: Audio checklist
     runs-on: ubuntu-latest
@@ -101,7 +117,7 @@ jobs:
 
   build-web:
     name: Build & Deploy Web
-    needs: [lint, test]
+    needs: [lint, test, web-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -118,13 +134,25 @@ jobs:
         run: flutter pub get
 
       - name: Build web (WASM)
-        run: flutter build web --wasm --release --base-href "/"
+        # BUILD_ID is what the adult area shows, so a grown-up can say out
+        # loud which build a tablet is on.
+        run: |
+          flutter build web --wasm --release --base-href "/" \
+            --dart-define=BUILD_ID="${GITHUB_SHA}"
 
-      # The service worker's cache is named after the build, so a deploy can
-      # never pair a fresh index.html with a cached main.dart.wasm from the
-      # build before it.
+      # The service worker's cache is named after the build, and its own bytes
+      # change with it — which is the only reason a browser notices a deploy at
+      # all. An unstamped worker would give every build one shared cache and
+      # never update, so treat a stamp that did not land as a failed build
+      # rather than a quiet one.
       - name: Stamp the service worker build id
-        run: sed -i "s/__BUILD_ID__/${GITHUB_SHA}/" build/web/sw.js
+        run: |
+          sed -i "s/__BUILD_ID__/${GITHUB_SHA}/g" build/web/sw.js
+          if grep -q "__BUILD_ID__" build/web/sw.js; then
+            echo "::error title=Service worker not stamped::build/web/sw.js still contains __BUILD_ID__, so every build would share one cache."
+            exit 1
+          fi
+          echo "Service worker stamped with ${GITHUB_SHA}."
 
       - name: Upload web build
         uses: actions/upload-artifact@v7

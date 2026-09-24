@@ -77,17 +77,23 @@ Worth checking on the device itself:
 8. **Whiteboard mode** — everything scales up and the chef waits for you instead of moving on by itself.
 9. **Offline** — load it once, turn off wi-fi, reload. It still runs. One online visit is enough: the page tells the service worker which files this browser actually downloaded, and those get cached.
 10. **Sound on a phone** — the chef should speak from the first tap. Mobile browsers refuse to make a sound before the page has been touched, so the first touch anywhere is spent silently unlocking the voice.
+11. **Getting a new version** — after a deploy, reload once. The build shown under "Version" in the adult area should become the one that was just deployed; the app reloads itself once to get there.
 
 > Camera access needs a secure context. On a tablet that means HTTPS or `localhost`; a plain `http://<ip>` page will not be offered the camera. Test mirror mode against <https://silly-soup.kindlingtools.com> rather than a local address.
 
 ## Running the checks
 
 ```bash
-flutter test                                    # 178 tests
+flutter test                                    # 206 tests
+bun test test/web                               # the service worker and the update flow
 flutter analyze --fatal-infos --fatal-warnings  # what CI runs
 dart format --output=none --set-exit-if-changed .
 dart run tool/audio_checklist.dart              # what is left to record
 ```
+
+`bun test test/web` runs `web/sw.js` and the update flow from
+`web/flutter_bootstrap.js` in a stand-in for the browser. They decide which
+build a nursery is running, and `flutter test` cannot see either of them.
 
 ## Audio
 
@@ -195,21 +201,29 @@ Sounds carry `articulation` (`continuant` or `stop`), which is what decides whet
 - **Stage 2** — adult-authored sounds and words (record a sound, add a word with a photo or emoji, record the word), hide/reorder/edit, live preview, IndexedDB storage, and sound pack export/import. The data model, merge behaviour and pack validation are already in place and tested; what is missing is the UI and the IndexedDB-backed store behind `CustomContentStore`. The "Look, listen and note" observation panel lands here too.
 - **Stage 3** — the extension modes: odd-one-out soup, "What's in the soup?", and rhyming soup. These are **not** part of the original activity and are labelled as extensions in the adult area.
 
-## Offline and the service worker
+## Offline, caching, and getting a new version
 
-Flutter's own service worker is now a no-op that unregisters itself, so the app ships its own — `web/sw.js`, registered from `web/flutter_bootstrap.js`:
+Flutter's own service worker is now a no-op that unregisters itself, so the app ships its own — `web/sw.js`, registered from `web/flutter_bootstrap.js`.
 
-- the page is **network-first**, so a new deploy is picked up as soon as there is a network, and falls back to the cached shell when there is not;
-- everything else is **cache-first**, because the cache name carries the build id and cannot serve a stale asset against a fresh `index.html`;
-- after the app boots, the page posts the list of resources it actually loaded to the worker, which caches them. Guessing that list at build time is not possible — which of the 48&nbsp;MB of renderer variants a browser picks depends on the browser.
+The awkward part is that these are two opposite requirements. The app has to start with no network at all, which means caching hard; and a nursery must never be left running last term's build, which means never trusting a cache. Nothing in `flutter build web` helps: **its output has no content hashes**, so every build publishes the same `main.dart.wasm`, `main.dart.js`, `canvaskit/` and `assets/` URLs as the one before it. There is no filename a browser can use to tell two builds apart.
 
-CI stamps the commit SHA into `sw.js` after the build. Without that step the cache name never changes and a deploy can pair a new `index.html` with an old `main.dart.wasm`.
+So the build id does that job instead:
 
-Verified in Chromium: load, go offline, reload, app still boots — including
-the renderer and the emoji fonts, which is new. Both used to come from Google's
-CDN, and a service worker cannot cache a cross-origin response it is not
-allowed to read, so "offline" previously depended on the browser's HTTP cache
-happening to still hold them.
+- **Everything is cache-first, out of a cache named after the build** — the page included. A load is therefore always one whole build. (The page used to be network-first, which is what made a reload after a deploy fetch the new `index.html` while the worker was still handing out the previous bundle: the child got a mixed build, or more often the old one, and only the reload *after that* came good.)
+- **A new build is noticed** because the browser re-fetches `sw.js` from the network on every navigation, bypassing the HTTP cache. A new build id makes those bytes different, so every deploy produces an update. `web/_headers` pins every response to `max-age=0, must-revalidate` for the same reason — with no hash in the name, anything cached without revalidation is cached until it is evicted.
+- **The new worker waits.** Taking over on its own would delete the cache the running app is still reading from, mid-soup. The page decides when: straight away if the child has not touched anything yet, otherwise when the tablet is put down, otherwise on the next load. Either way one reload by a grown-up lands on the new build, and the swap costs exactly one automatic reload on top of it.
+- **Network fetches carry `?v=<build id>`**, so a caching proxy between the nursery and Cloudflare cannot answer a request for the new build with the bytes it kept for the old one. The response is stored under the plain URL, which is what the app asks for.
+- **After the app boots**, the page posts the list of resources it actually loaded to the worker, which caches them. Guessing that list at build time is not possible — which of the 48&nbsp;MB of renderer variants a browser picks depends on the browser.
+
+CI stamps the commit SHA into `sw.js` after the build, and fails if the stamp did not land: an unstamped worker gives every build one shared cache and never updates. The same SHA is compiled in with `--dart-define=BUILD_ID`, and shown under "Version" in the adult area, so "which build is this tablet on?" is a question a grown-up can answer out loud.
+
+Verified in Chromium against a real build: first visit, offline reload, then a second build deployed underneath and one reload — which lands on the new build, sweeps the old cache, and restarts the app exactly once.
+
+A service worker cannot cache a cross-origin response it is not allowed to
+read, so before the renderer and the emoji fallbacks moved to our own origin
+they were never in that cache at all — "works offline" was resting on the
+browser's HTTP cache happening to still hold 1.4&nbsp;MB from Google. Those
+are same-origin now, so an offline boot is genuinely served by `sw.js`.
 
 ## Load performance
 
@@ -239,8 +253,12 @@ it arrives.
   Poppins and declaring it in `pubspec.yaml` does the same job and took
   **1.0&nbsp;MB** out of `main.dart.wasm` (3.28&nbsp;MB → 2.24&nbsp;MB
   uncompressed).
-- **`web/_headers`** gives the engine and the fonts a real cache lifetime.
-  Cloudflare Pages otherwise sends `max-age=0, must-revalidate` for every file.
+- **`web/_headers`** is now one blanket `max-age=0, must-revalidate`, as
+  the section above explains. This branch had split it — a week for the
+  engine, a year for the content-addressed fonts — to save a classroom
+  18 conditional requests each morning. The service worker does that job
+  better: a warm visit is served from the Cache API and makes no
+  conditional request at all.
 
 Measured in headless Chromium against a local server that mimics Pages
 (brotli, ETags), throttled to 8&nbsp;Mbit/s with 60&nbsp;ms RTT. Both columns
@@ -263,7 +281,6 @@ precompressed copy would win roughly 300&nbsp;KiB, but it means storing
 brotli bytes under the plain filename and asserting `Content-Encoding` in
 `_headers`, which breaks any client that does not accept brotli. Not worth it
 for this app; noted in case the floor ever matters more.
-
 ## Deployment
 
 **Live at <https://silly-soup.kindlingtools.com>.**
