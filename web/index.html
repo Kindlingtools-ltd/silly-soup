@@ -151,6 +151,38 @@
   </script>
 
   <style>
+    /*
+      Poppins for the splash, inline.
+
+      The app's own Poppins is inside the Flutter asset bundle, which does not
+      exist until the engine has booted — the whole of the wait this splash
+      covers. A <link> to a copy would be a second round trip on the critical
+      path, and at 60ms RTT it lands after the first frame: the splash would
+      paint in the system font and then reflow into Poppins, which is the jump
+      this is here to remove. Inline, the font is there the moment the style
+      sheet is parsed.
+
+      Affordable only because it is subset to the two strings the splash ever
+      draws — 1.4KB a weight rather than 157KB. tool/boot_font/README.md has
+      the command; test/web/shell_layout_test.dart fails if the text drifts
+      outside what was subset, or if these bytes stop matching the files it
+      was made from.
+    */
+    @font-face {
+      font-family: 'Poppins Boot';
+      font-style: normal;
+      font-weight: 500;
+      font-display: block;
+      src: url(data:font/woff2;base64,d09GMgABAAAAAAWAAAwAAAAACggAAAUyAAQBBgAAAAAAAAAAAAAAAAAAAAAAAAAAGyAcMAZgAIEECopoiGkBNgIkA1ALKgAEIAWDBgcgGwwIIxHCxgEQxccI/pGQuaWn2blPnUYVjra75Em61PU1sd/z6d/N/twktWRdqCjqQ7EgVgkVk7TQ+sI+tS81o33iTgP8h39HcLp0DKbYYZ/CTt/D/3+/WRHR7KWSMo2QHh99XMwuUW1exZOmsENcW3MvbSUuamh9bf62Dz/ikMEFihN7WXi17S/2ZhAALA7gEIiHDwvIBwMA2SwAgFlkUIAe3dHXn9TgUGV1LxRh43SGbiW/ygGok6kmAKE6gXRAQ4JVmYvNBOxegZ+P4RFIJGXMvv8vQ9+cpGZQM1VO3QuS3BYFgJZ0BwEhNYMp3IMtzm/mQ4J6jbr1GzZFlLDwlWWzAOpBY7zZz7t3Szd2RZd2SRd1YRd07r4DAZPswD0rAOwGyHkAFQSwC0D+BIMQHIrRQTtUL0WypXxvr7Mk1ckwJV3vfdm9o6/MQ5F+mDvlQaQeYDNra4S78FXTaZ2kH3qOJ5cqvb5+SCbOXrTGnvwKUg8+680wog9+4w12qY3taBM6uPbOCu+0z5ETjmHJDW/0eCekPlnrJXgSqTvJndJWJr+cNLDxeQMLJZQzaLgMz0i+mQKpplIDd2GUkpGhno0yY+k3I8oUS6fJ+2bvHA43r3MfbNWKM2xOp1z7T8eCQWaRpPp2tfjQROax/s3D64zYoWXy3DsAs6pnCorN4/BR44N1DpPbrVTqWs4eWiM0SzjBwpq571ahOSq1/SH03Dzb2sHBmlubc889fJhHDr3+PYfwVe6kytFsW7R9ZbY6TfLiU55ud28VSqwRp83aPKr09af6chtXS516g/pVpWTobrtnW0OpLerSm9rHTEHYXXe/eFf6rI3nbTyCJ+5+1cIZ+vP1qTM1Z2pQMuQ5kuT9zi7NkzUz5TN1T/Vqq30Jv+do/WMGRX1IKpOFqhR1ZrMiHpZJZSGpQjDDTUxXMs7GWHVbaXhpT+hoV3dsmedT8bgnteytjS643Ys1yeJNjSGntT54BEPKHs2dNTOqsCM57xamzhkqaJ5+TtBZvUJ9TdtTPTqHP5kL9Q/a1UMfp//yVcoevWk45J3WBQPR6upgNKgTPxX/e6ypVI/+yV821+gvF8vxwCefto0Djaga0FvC8waRwKGOW+Olateg8Y70sMWOS5V9PPN8lNVwGL7JX+F9qbgQSB/xxmKS6L9BEELpo3xM2hOuVNbbbPK6UKVMFqyU1tmaW7q8eOufXq3Dn+TdR+rr3UeTfr+jW/NZgygXa6PHK+rCVTJpWKqoN5sVQlgqlYVlirgZGdQpzMmDbo9bKBLLxRof4OVn1YefK+Y7WyK1vlq1s9150sxJx7fDXlYuOi9tKFM7P9PgmdbeXAtL2c7iquQk9+bBI+ddfsnlQDEoPAstJuewqHcDAFsAVfYvSsApCACG5LK3t9V0brb9lk/TXwLAm1dc+xgAvLPL8MJ/X/x3X8G3jB5AHigAAAFOafJeg0R/xRc+aS/bQX4FwgD4iYpqg4X+Atupq1BKDaO0jJ6EUOTDJlWhuVk8TsJVlCHqUKRwFge8Fj94sH5MdZDHO9MGJOTm3o0GBSAPLWgQpgDAZWDZCA7gMhuFTXjIRsOCF9YyqC0HLMl9WS4OkC1wmzRlgWjYoCGzJNBAJVECwWH3Qw1Mp0p5wgybioWOINAbRKeEpkMeiBhUTMRZUyZaoBTlQcPAVkIPRbgzaZzSwwGTtL8JfUQLlJkbV66AEf2RycMSxtX9lWiCPno3UYCAF2OFJMxgozoooIJKN3qYYC4Ud5VnaDB32TtpAA==) format('woff2');
+    }
+    @font-face {
+      font-family: 'Poppins Boot';
+      font-style: normal;
+      font-weight: 600;
+      font-display: block;
+      src: url(data:font/woff2;base64,d09GMgABAAAAAAWMAAwAAAAACgQAAAU+AAQBBgAAAAAAAAAAAAAAAAAAAAAAAAAAGyAcMAZgAIEECopYiFcBNgIkA1ALKgAEIAWDEgcgGwYIUVRRHhB8LJQbT9ack0bafsiHx23/597N2uyYBYjJrGTAtEEfYEWBLwp/dvP80Q2qcBWVGV/4lD/uVc0YkzcGOKSxAI357iWbXr5lLJuztCZRwXoFmdNrvYrWJpjW5hKT8ejDmUAowRPRum0/nwwCgEM0YkH0cp0ZnmABwAUBAGZJQwaY5uCBwSURsZXVu1KEjeNYpo+2wA2gx6oOqG0hXRBJXVV6YDcBu1a1WTbiEQiCgo38/zIMsNN0HjVTNX0QhbUnUwAMgGAwIFrNYobC4e/8pScE7EMzejGIUcxgDotYFRQuCFAPY4K38HW7PnKLG13hUpe4yIUucO59BwImCcbNVADCAHImQEsBhALwRpEULg3oiB2ppyEu3uk+Qf7hHoJ/iDfLJgb7v/38dCGezpeI/WX++IOwPcA5T5xI4C981XR6mdgfek6OndDpvb1yV6eFu+gl7tgLsD34rMHpdML2xhvcegfX1mLu4ju7Cd9pH0gnPMuRG97o8SfEPpE+7cPTsMXS/PG2Ovkl3PtSg5r5N7DogoIT1svwnPBNCtqa8lb+wiiQkdGe9Zxj4ZsRBcox9st/0+nG4+Y9/oOPYr3Y/AJnYTm3brn6H3zlTjru1KiNvhm52vnUwHaxPRYnYMXm5N/xA3t6l0E5Dx4f+VtTyG20U9u1vF0jDEd4wcKq5T9WZHhq++7/jFle4dq7+LOt7R3uvomJvork/xMT/0/Gt+4LGl2n31nq3izNliKu+VCMLsisKGmQykrbp7OqJg6NuHeeF3RSZoqXKlo/FKsLsihLjdqCwu7pgnqUXXbfY/deufPjkR8vx/33nbUWsxtzwcHI9UgIY5J9zlBZ1qG507ir3m28qkssk+cqpR3L7VnKKp1CqdQmq6pEUVUjKRVKepdV2aik+WfWVuvyGgTp7DDj4aF+05Ys2y1Wg33T0GTc0Ok3Gk9RutVW5OfIZctoFzuzrjLuZtSXrqzLLUtnTXp1Hb+yKi2ntLaqxnpVV3apPD8Xzfsc6q6vp9/zfk1vXt5YrcEhSlq5sEiSJdHxqcN1easqH0PjPyyXnKwG9Vq1Q41XPvm0rRm5t4kbGzNRF61WX1go6bXBO27RRdQO3WVmZbZ2MO+2m4cKS/C2ZrUrMikAnspwu1WVg689t+Uqu8VSY7fLJpOEGuuUdfYduTF5VUpSVucam8wlJSaz0digXxPfuLrE0so5g2SzWKSducrK0g7Nk80O0WFKOkVVJSUrFZJCVS2KqmptUiglJWRH38iqKTg9WZJK64MdaocVX9zlHX2NoF1qufUGXpqXju4e3ZiHMUW9K19uVWVr+/MKxmoMDs2TWdqLa3BgTQmZzzpzOei9qAtP2jllB0gExTvQYnI3i34YAPAH0lxPT8aFIABY4h79w9lXdPuV/ObJMF8CwJtXXPskALwTmvfifx/9d7PXS6wOgAcoAIAAhzPt9QAk+qtg5QOmDia/XvR7gLBIo73IZoFQehXi6SjiqflMGEgo8qTKwIaL6Zm0hQREbSBn0AFEeNMVtBNu9G6knd+jnQJvLMB9LcOAbkltYEq3F4DLAMtGIOAyG4UvHrMxKMMrq1nU5gaO+D7MHQIJhw7TmMEq5jCKYYxgAQJEZEkSYHbYg2iCYYaYKczbMEcwhmB/kLRY1DDi4RyGqkRawIxJRcgUzDBGweZF9CED/QFmEpkeDWH6oikMZMDqa4WV66fsQPswSDQKyYeJMDTZNIxF67P1Yg7VMEOGEcUQEgJocw4ykIUsXe1DAcyVMtyn5xgwT64lAg==) format('woff2');
+    }
+
     html, body {
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       background: #FFF7EE;
@@ -174,20 +206,31 @@
       justify-content: center;
       gap: 20px;
       background: #FFF7EE;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Poppins Boot', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       /* Fades out rather than snapping, so the handover is not a flash. */
       transition: opacity 260ms ease-out;
     }
     .boot[hidden] { display: none; }
     .boot.boot-done { opacity: 0; pointer-events: none; }
+    /*
+      Sizes, weights and colours below are the app's own — headlineLarge at
+      the 34px the home screen asks for, and `secondary` for the line under
+      it. The splash used to be a slate-blue system font and the home screen
+      is near-black Poppins, so the handover was a visible jump in typeface,
+      size and colour all at once.
+    */
     .boot h1 {
       margin: 0;
       font-size: 34px;
       font-weight: 600;
-      color: #3C4759;
-      letter-spacing: 0.5px;
+      color: #111827;
     }
-    .boot p { margin: 0; font-size: 17px; color: #6B7A99; }
+    .boot p {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+      color: #4B5563;
+    }
 
     /* Pot and spoon, drawn rather than fetched. */
     .boot svg { width: 132px; height: 132px; }
