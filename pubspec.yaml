@@ -33,8 +33,12 @@ dependencies:
   # Recorded phoneme and word clips
   audioplayers: ^6.8.1
 
-  # Speech fallback when a clip is missing (Web Speech API on web)
+  # Speech fallback when a clip is missing, on iOS, Android and desktop.
+  # The web uses the Web Speech API directly — see speech_engine_web.dart.
   flutter_tts: ^4.2.5
+
+  # Web Speech API bindings for the browser voice
+  web: ^1.1.1
 
   # Live-only mirror for "Watch my mouth" — never records
   camera: ^0.12.1

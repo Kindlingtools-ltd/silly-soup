@@ -53,6 +53,29 @@ class AudioService {
     return next;
   }
 
+  /// Spend the child's first tap on making sound possible.
+  ///
+  /// A mobile browser will not speak or play a clip until the page has been
+  /// touched, and it refuses silently: the app looked as though it had no
+  /// voice at all, gave up waiting for one, and ran the whole game in
+  /// silence. This is called from the first pointer down, inside the gesture,
+  /// which is the only moment the permission is granted.
+  Future<void> unlock() async {
+    if (_unlocked) return;
+    _unlocked = true;
+    await _sink.unlock();
+    // Anything that timed out before the voice was allowed to speak should
+    // not count against it.
+    _unfinished = 0;
+  }
+
+  bool _unlocked = false;
+
+  /// Whether [unlock] has run. The adult area reports it, because "no sound
+  /// on this device" and "nobody has touched the screen yet" look identical
+  /// and have very different answers.
+  bool get isUnlocked => _unlocked;
+
   /// Stop what is playing and abandon anything queued behind it.
   ///
   /// This is what a child's tap does: they should not have to wait for the

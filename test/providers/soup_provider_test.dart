@@ -18,6 +18,7 @@ class SlowSink implements AudioSink {
   final List<String> events = [];
   int speaking = 0;
   int maxConcurrent = 0;
+  int unlockCount = 0;
 
   Completer<void>? _current;
 
@@ -48,6 +49,9 @@ class SlowSink implements AudioSink {
     _current = null;
     if (current != null && !current.isCompleted) current.complete();
   }
+
+  @override
+  Future<void> unlock() async => unlockCount++;
 
   @override
   Future<void> dispose() async {}

@@ -22,11 +22,11 @@ Future<void> main() async {
     ], await rootBundle.loadString('assets/google_fonts/OFL.txt'));
   });
 
-  // Landscape suits a shared tablet on a table between an adult and a child.
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
+  // Landscape suits a shared tablet on a table between an adult and a child,
+  // but a phone is held upright and locking it to landscape left a child
+  // looking at a sideways app they could not use. Every screen lays itself
+  // out for the space it is given instead.
+  await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
 
   // One service, shared by the provider that reports what happens in the
   // kitchen and the observer that reports which screen is up.
@@ -49,8 +49,29 @@ class SillySoupApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         navigatorObservers: [_routeObserver],
-        home: const AppLoader(),
+        home: const _UnlockAudioOnFirstTouch(child: AppLoader()),
       ),
+    );
+  }
+}
+
+/// Spends the very first touch on making sound possible.
+///
+/// Mobile browsers will not speak or play a clip until the page has been
+/// touched, and they refuse without saying so. Listening here — above every
+/// screen, at the pointer-down that starts the child's first tap — is what
+/// makes the chef audible on a phone at all.
+class _UnlockAudioOnFirstTouch extends StatelessWidget {
+  const _UnlockAudioOnFirstTouch({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      // Behind everything, so it never takes a tap away from a button.
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => context.read<AppProvider>().audio.unlock(),
+      child: child,
     );
   }
 }
