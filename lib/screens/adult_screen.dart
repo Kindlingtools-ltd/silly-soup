@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/providers.dart';
 import '../utils/app_theme.dart';
+import '../utils/build_info.dart';
 
 /// The grown-ups' area, behind the press-and-hold gate.
 ///
@@ -178,6 +179,7 @@ class AdultScreen extends StatelessWidget {
           _ContentCheck(app: app),
           _MissingRecordings(app: app),
           const _PrivacyNote(),
+          const _BuildNote(),
           const SizedBox(height: 32),
         ],
       ),
@@ -371,6 +373,28 @@ class _PrivacyNote extends StatelessWidget {
         'picked, how many things go in the pot, which settings you change — '
         'using Google Analytics. No names, no recordings, no pictures and no '
         'advertising. The full list is in PRIVACY.md on the project page.',
+        style: SoupTypography.body(context),
+      ),
+    );
+  }
+}
+
+class _BuildNote extends StatelessWidget {
+  const _BuildNote();
+
+  @override
+  Widget build(BuildContext context) {
+    // A local run has no deploy to name, so there is nothing useful to say.
+    if (!BuildInfo.isStamped) return const SizedBox.shrink();
+
+    return _Section(
+      title: 'Version',
+      child: Text(
+        'Build ${BuildInfo.shortBuildId}.\n\n'
+        'The app checks for a newer version whenever it starts, and swaps '
+        'itself over when nobody is mid-soup. If two devices are showing '
+        'different things, compare this line and reload the one that is '
+        'behind.',
         style: SoupTypography.body(context),
       ),
     );
