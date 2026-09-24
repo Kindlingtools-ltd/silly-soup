@@ -11,8 +11,10 @@ class PhonemeSound {
     required this.label,
     required this.grapheme,
     required this.articulation,
+    this.manner = '',
     required this.pureSound,
     this.pronunciation = '',
+    this.carrierWord = '',
     this.audio,
     this.mouthShape = MouthShape.openSmall,
     this.mouthTip = '',
@@ -31,8 +33,10 @@ class PhonemeSound {
       label: (json['label'] as String? ?? id).trim(),
       grapheme: (json['grapheme'] as String? ?? id).trim(),
       articulation: Articulation.fromId(json['articulation'] as String?),
+      manner: (json['manner'] as String? ?? '').trim(),
       pureSound: (json['pureSound'] as String? ?? id).trim(),
       pronunciation: (json['pronunciation'] as String? ?? '').trim(),
+      carrierWord: (json['carrierWord'] as String? ?? '').trim(),
       audio: (json['audio'] as String?)?.trim(),
       mouthShape: MouthShape.fromId(json['mouthShape'] as String?),
       mouthTip: json['mouthTip'] as String? ?? '',
@@ -57,6 +61,15 @@ class PhonemeSound {
   /// Whether the sound is stretched or bounced. See [Articulation].
   final Articulation articulation;
 
+  /// How the sound is made: `fricative`, `nasal`, `vowel` or `stop`.
+  ///
+  /// Build-time data, and the app never reads it — but it decides how the
+  /// recording is made, so a sound pack that loses it cannot be recorded.
+  /// `tool/audio_build.py` cuts a fricative out of a word where the voicing
+  /// starts, a nasal where the brightness rises, and never holds a stop on at
+  /// all, because holding a stop is what produces "buh".
+  final String manner;
+
   /// How the pure sound is written out for the chef: `sss`, `b`.
   /// Never contains an added "uh".
   final String pureSound;
@@ -70,6 +83,13 @@ class PhonemeSound {
   /// transcription falls back to however the model reads the letters.
   /// Empty for adult-recorded custom sounds, which need no synthesis.
   final String pronunciation;
+
+  /// The word this sound's recording is cut out of: /s/ from "sun".
+  ///
+  /// The speech engine cannot say a phoneme — asked for `sss` it says the
+  /// letter name — so every pure sound is lifted out of an ordinary word said
+  /// properly, which is also what an adult does when modelling it.
+  final String carrierWord;
 
   /// Path of the recorded pure sound, relative to `assets/audio/`.
   final String? audio;
@@ -113,8 +133,10 @@ class PhonemeSound {
       'label': label,
       'grapheme': grapheme,
       'articulation': articulation.id,
+      if (manner.isNotEmpty) 'manner': manner,
       'pureSound': pureSound,
       if (pronunciation.isNotEmpty) 'pronunciation': pronunciation,
+      if (carrierWord.isNotEmpty) 'carrierWord': carrierWord,
       'audio': audio,
       'mouthShape': mouthShape.id,
       'mouthTip': mouthTip,
@@ -132,8 +154,10 @@ class PhonemeSound {
     String? label,
     String? grapheme,
     Articulation? articulation,
+    String? manner,
     String? pureSound,
     String? pronunciation,
+    String? carrierWord,
     String? audio,
     MouthShape? mouthShape,
     String? mouthTip,
@@ -149,8 +173,10 @@ class PhonemeSound {
       label: label ?? this.label,
       grapheme: grapheme ?? this.grapheme,
       articulation: articulation ?? this.articulation,
+      manner: manner ?? this.manner,
       pureSound: pureSound ?? this.pureSound,
       pronunciation: pronunciation ?? this.pronunciation,
+      carrierWord: carrierWord ?? this.carrierWord,
       audio: audio ?? this.audio,
       mouthShape: mouthShape ?? this.mouthShape,
       mouthTip: mouthTip ?? this.mouthTip,

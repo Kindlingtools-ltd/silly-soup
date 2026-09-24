@@ -40,7 +40,13 @@ FRAME_MS = 20
 SILENCE_FLOOR = 0.08
 
 LEAD_PAD_MS = 40
-TRAIL_PAD_MS = 90
+TRAIL_PAD_MS = 120
+# The end of a word is judged far more gently than the start. A word that
+# finishes on an unreleased /k/, /p/ or /t/ finishes quietly, and trimming the
+# tail at the same threshold as the rest cut the consonant clean off: "sock"
+# came back from the transcriber as "So", "soup" as "Sue", "map" as nothing at
+# all. Every clip that failed ended in a voiceless stop.
+TAIL_FLOOR = 0.015
 FADE_MS = 10
 
 
@@ -237,6 +243,19 @@ def score(spec: Spec, a: Analysis) -> tuple[bool, str, float]:
     return True, "", abs(a.speech - spec.ideal_speech)
 
 
+def _tail_end(values: list[int], rate: int, a: Analysis) -> int:
+    """The last sample with anything in it, judged at [TAIL_FLOOR]."""
+    step = max(1, rate * FRAME_MS // 1000)
+    floor = (a.peak or 1) * TAIL_FLOOR
+    end = a.last
+    for start in range(a.last, len(values) - step + 1, step):
+        window = values[start : start + step]
+        rms = math.sqrt(sum(v * v for v in window) / len(window))
+        if rms > floor:
+            end = start + step
+    return min(len(values), end)
+
+
 def trim_and_level(values: list[int], rate: int, a: Analysis) -> list[int]:
     """Cut the dead air, match the loudness, and fade the edges.
 
@@ -246,7 +265,7 @@ def trim_and_level(values: list[int], rate: int, a: Analysis) -> list[int]:
     between every word the child hears.
     """
     lead = max(0, a.first - int(LEAD_PAD_MS * rate / 1000))
-    tail = min(len(values), a.last + int(TRAIL_PAD_MS * rate / 1000))
+    tail = min(len(values), _tail_end(values, rate, a) + int(TRAIL_PAD_MS * rate / 1000))
     clip = values[lead:tail]
     if not clip:
         return clip
@@ -347,3 +366,135 @@ def read_mp3(data: bytes) -> Mp3Info:
     if not frames:
         raise TtsError("no MPEG frames at all")
     return Mp3Info(samples_total / rate, frames, rate, bitrates, channels)
+
+
+# --- listening to it ---------------------------------------------------------
+#
+# The lesson of the pass before this one: acoustic measurements say whether a
+# clip is well formed, not whether it says the right thing. A recording can be
+# a textbook unbroken stretch of friction and still be the voice reading out
+# "S S S", and every number in this file will call it perfect. The only check
+# that would have caught that is reading the clip back.
+#
+# x.ai's /v1/stt does that, with word-level timings, which also makes it the
+# most reliable way to find where a word starts inside a phrase.
+
+import uuid  # noqa: E402
+
+
+def transcribe(audio: bytes, host: str, token: str, filename="clip.wav") -> dict:
+    """Read a clip back. Returns {"text": ..., "words": [{text, start, end}]}."""
+    boundary = "----" + uuid.uuid4().hex
+    mime = "audio/wav" if audio[:4] == b"RIFF" else "audio/mpeg"
+    body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; "
+        f"filename=\"{filename}\"\r\nContent-Type: {mime}\r\n\r\n"
+    ).encode()
+    body += audio + b"\r\n" + f"--{boundary}--\r\n".encode()
+    request = urllib.request.Request(
+        f"http://{host}/xai/v1/stt",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=180) as response:
+            return json.loads(response.read().decode())
+    except urllib.error.HTTPError as error:
+        raise TtsError(
+            f"stt HTTP {error.code}: {error.read().decode()[:200]}"
+        ) from None
+
+
+def to_wav(values: list[int], rate: int) -> bytes:
+    buffer = io.BytesIO()
+    writer = wave.open(buffer, "wb")
+    writer.setnchannels(1)
+    writer.setsampwidth(2)
+    writer.setframerate(rate)
+    writer.writeframes(struct.pack(f"<{len(values)}h", *values))
+    writer.close()
+    return buffer.getvalue()
+
+
+def spoken_words(text: str) -> list[str]:
+    """The words of a transcript, lower case, with punctuation dropped."""
+    cleaned = "".join(c if c.isalpha() or c.isspace() else " " for c in text.lower())
+    return cleaned.split()
+
+
+def _skeleton(word: str) -> str:
+    """A word with its vowels dropped and its spellings regularised.
+
+    The transcriber writes what it hears using ordinary spelling, so "sun"
+    comes back as "Son", "ink" as "Inc." and "ball" as "Bull". Those are the
+    same word said correctly, and rejecting them would throw away good takes
+    all day. What must still be caught is a different word, or half a word —
+    "app" for "apple" — so the consonants have to match.
+    """
+    mapped = []
+    for i, c in enumerate(word):
+        if c in "aeiou":
+            continue
+        # Received Pronunciation is non-rhotic, so an "r" that is not in front
+        # of a vowel is not a consonant at all: "anchor" is /ˈæŋkə/ and the
+        # transcriber quite correctly writes it "Anka". "h" goes the same way
+        # — silent in "anchor", and in a digraph the letter in front of it
+        # already carries the sound.
+        if c == "r" and (i + 1 >= len(word) or word[i + 1] not in "aeiou"):
+            continue
+        if c == "h":
+            continue
+        if c == "c":
+            c = "s" if i + 1 < len(word) and word[i + 1] in "ei" else "k"
+        elif c in "qx":
+            c = "k"
+        elif c == "z":
+            c = "s"
+        elif c == "y":
+            continue
+        if mapped and mapped[-1] == c:
+            continue
+        mapped.append(c)
+    return "".join(mapped)
+
+
+def _edits(a: str, b: str) -> int:
+    """Levenshtein distance, for the one-letter cases the skeleton misses."""
+    previous = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        current = [i]
+        for j, cb in enumerate(b, 1):
+            current.append(
+                min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (ca != cb))
+            )
+        previous = current
+    return previous[-1]
+
+
+def sounds_like(heard: str, expected: str) -> bool:
+    """Whether a transcript word is the word that was asked for."""
+    heard, expected = heard.lower(), expected.lower()
+    if heard == expected:
+        return True
+    if _skeleton(heard) == _skeleton(expected):
+        return True
+    return _edits(heard, expected) <= 1 and heard[:1] == expected[:1]
+
+
+# Letter names, as a transcriber writes them. A pure-sound clip that reads
+# back as one of these is the letter name being taught as the sound — which is
+# the single defect this whole pipeline exists to prevent.
+LETTER_NAMES = {
+    "a", "ay", "b", "bee", "c", "cee", "d", "dee", "e", "ee", "f", "ef",
+    "g", "gee", "h", "aitch", "i", "j", "jay", "k", "kay", "l", "el",
+    "m", "em", "n", "en", "o", "oh", "p", "pee", "q", "queue", "r", "ar",
+    "s", "es", "ess", "t", "tea", "tee", "u", "you", "v", "vee",
+    "w", "x", "ex", "y", "why", "z", "zed", "zee",
+}
+
+# The added vowel, as a transcriber writes it. "Buh" for /b/ is precisely what
+# Letters and Sounds Phase One says never to model.
+ADDED_VOWEL_ENDINGS = ("uh", "ah", "er")

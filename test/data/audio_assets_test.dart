@@ -104,6 +104,40 @@ void main() {
       }
     });
 
+    test('every sound says how it is made and what it is cut out of', () {
+      // The engine cannot say a phoneme: asked for `sss` it reads the letter
+      // name, and asked for `b b b` it says "Buh buh buh". So each pure sound
+      // is cut out of an ordinary word, and how to cut it depends on how the
+      // sound is made. Without both of these a sound cannot be recorded at
+      // all — including a custom one an adult adds.
+      const manners = {'fricative', 'nasal', 'vowel', 'stop'};
+      final words = bank.words.map((word) => word.word).toSet();
+
+      for (final sound in bank.sounds) {
+        expect(manners, contains(sound.manner), reason: sound.id);
+        expect(words, contains(sound.carrierWord), reason: sound.id);
+        final carrier = bank.words.firstWhere(
+          (word) => word.word == sound.carrierWord,
+        );
+        expect(
+          carrier.phoneme,
+          sound.id,
+          reason: '${sound.carrierWord} does not start with /${sound.id}/',
+        );
+      }
+    });
+
+    test('a stop is never held on, because holding one makes "buh"', () {
+      for (final sound in bank.sounds) {
+        if (sound.manner == 'stop') {
+          expect(sound.isContinuant, isFalse, reason: sound.id);
+        }
+        if (sound.isContinuant) {
+          expect(sound.manner, isNot('stop'), reason: sound.id);
+        }
+      }
+    });
+
     test('every sound has a recording of its action', () {
       for (final sound in bank.sounds.where((s) => s.action.isNotEmpty)) {
         expectPlayableClip(ChefVoice.actionClip(sound));

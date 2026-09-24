@@ -97,6 +97,11 @@ jobs:
       - name: Check every recording is there
         run: dart run tool/audio_checklist.dart
 
+      - name: Test the audio tools
+        # The cutting and splicing decide what a child hears, so the logic
+        # that makes them is tested. No network, no credentials.
+        run: python3 -m unittest discover -s tool -p 'test_*.py' -v
+
       - name: Check every recording still plays
         # Reads each file as an MP3 and holds its length against the bounds it
         # was recorded to. No API call, no credentials — this only inspects

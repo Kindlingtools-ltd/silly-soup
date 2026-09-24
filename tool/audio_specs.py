@@ -68,36 +68,18 @@ def clip_specs(bank: dict, script: dict) -> list[Spec]:
     for sound in bank["sounds"]:
         ipa = sound["pronunciation"]
         held = sound["articulation"] == "continuant"
-        if held:
-            hissed = sound["id"] in VOICELESS_FRICATIVES
-            specs.append(
-                Spec(
-                    path=f"assets/audio/{sound['audio']}",
-                    kind="phoneme",
-                    text=sound["pureSound"],
-                    replace={sound["pureSound"]: stretched(ipa)},
-                    min_speech=0.30,
-                    max_speech=1.70,
-                    want_segments=1,
-                    min_flatness=None if hissed else 0.35,
-                    max_vowel=0.08 if hissed else None,
-                    speed=1.0,
-                )
+        # Not asked for — cut out of `carrierWord` by tool/audio_build.py,
+        # because the engine cannot say a phoneme. The bounds here are what
+        # the audit holds the finished clip to.
+        specs.append(
+            Spec(
+                path=f"assets/audio/{sound['audio']}",
+                kind="phoneme",
+                text=f"the sound /{sound['id']}/, cut from {sound['carrierWord']!r}",
+                min_speech=0.20,
+                max_speech=0.90,
             )
-        else:
-            token = sound["pureSound"]
-            specs.append(
-                Spec(
-                    path=f"assets/audio/{sound['audio']}",
-                    kind="phoneme",
-                    text=" ".join([token] * BOUNCES),
-                    replace={token: ipa},
-                    min_speech=0.45,
-                    max_speech=2.40,
-                    want_segments=BOUNCES,
-                    speed=1.0,
-                )
-            )
+        )
 
     for word in bank["words"]:
         sound = sounds[word["phoneme"]]
@@ -105,15 +87,14 @@ def clip_specs(bank: dict, script: dict) -> list[Spec]:
         word_ipa = word["pronunciation"]
         the = article(sound["isVowel"])
 
+        # Sliced out of the same "a <word>" take the emphasis clip comes
+        # from, at the timings the transcriber reports, so the two are the
+        # same voice at the same pitch.
         specs.append(
             Spec(
                 path=f"assets/audio/{word['audio']}",
                 kind="word",
                 text=word["word"],
-                replace={word["word"]: word_ipa},
-                # "pig" really is only about a sixth of a second long, so
-                # this floor is low. A take that was actually swallowed is
-                # caught by the loudness and burst checks instead.
                 min_speech=0.14,
                 max_speech=1.60,
             )
@@ -133,8 +114,7 @@ def clip_specs(bank: dict, script: dict) -> list[Spec]:
                 path=f"assets/audio/emphasis/{word['word']}.mp3",
                 kind="emphasis",
                 text=text,
-                replace=replace,
-                min_speech=0.30,
+                min_speech=0.45,
                 max_speech=3.20,
             )
         )
