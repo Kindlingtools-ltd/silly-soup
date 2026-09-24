@@ -4,18 +4,34 @@ import 'package:flutter/foundation.dart';
 
 import '../models/models.dart';
 import 'audio_sink.dart';
+import 'clip_library.dart';
 import 'recital_service.dart';
 
 /// Everything the child hears.
 ///
 /// Recorded clips come first, always. Speech is only ever a fallback for a
 /// clip that has not been recorded yet, and every fallback is logged so the
-/// adult area and `dart run tool/audio_checklist.dart` can both show exactly
+/// adult area and `uv run tool/build_audio.py --audit` can both show exactly
 /// what is still missing.
+///
+/// Almost everything the chef says arrives as a [ChefLine] — words plus the
+/// recordings that say them. That matters because the device's own voice is
+/// whatever the browser happens to ship, and it used to be what a child heard
+/// for the commentary, the recitals and the praise: all of it, all the time.
 class AudioService {
-  AudioService({AudioSink? sink}) : _sink = sink ?? PlatformAudioSink();
+  AudioService({AudioSink? sink, ClipLibrary? clips})
+    : _sink = sink ?? PlatformAudioSink(),
+      _clips = clips ?? const ClipLibrary.empty();
 
   final AudioSink _sink;
+
+  /// Which recordings were built. Consulted before a line made of several
+  /// clips is started, because a line cannot be abandoned half-way through
+  /// without the child hearing the first half twice.
+  final ClipLibrary _clips;
+
+  /// How many recordings this build has. The adult area reports it.
+  int get recordedClipCount => _clips.length;
 
   /// 0.0 to 1.0, set from the adult's volume control.
   double volume = 1.0;
@@ -99,26 +115,6 @@ class AudioService {
   Future<void> playWord(SoupWord word) =>
       _playClipOrSpeak(word.audioAssetPath, word.word);
 
-  /// A word with its first sound emphasised, for the chef's commentary.
-  ///
-  /// There is no clip for the emphasised form — the emphasis is the chef's
-  /// job — so this always goes through the voice unless a setting has
-  /// recorded one for this exact word.
-  Future<void> playEmphasisedWord(SoupWord word, PhonemeSound sound) async {
-    // On a device whose voice does not work, the emphasis cannot be spoken at
-    // all. The recorded word is worth far more than silence, even without the
-    // stretched or bounced first sound.
-    final clip = word.audioAssetPath;
-    if (voiceIsSilent && clip != null) {
-      var played = false;
-      await _enqueue(() async {
-        played = await _sink.playAsset(clip, volume: volume);
-      });
-      if (played) return;
-    }
-    await speak(RecitalService.emphasise(word, sound));
-  }
-
   /// The stirring song: the adult's own recording if they made one, then the
   /// bundled recording, then the words spoken.
   Future<void> playSong({String? customRecordingPath}) async {
@@ -138,6 +134,46 @@ class AudioService {
   /// from the child's own choices, so they are always spoken.
   Future<void> speak(String text) =>
       _enqueue(() => _bounded(() => _sink.speak(text, volume: volume), text));
+
+  /// Say one of the chef's lines, played rather than spoken wherever the
+  /// recordings exist.
+  ///
+  /// The whole line is checked before any of it starts. A recital is several
+  /// clips in a row, and discovering the fourth one is missing after playing
+  /// three would leave the chef stopping mid-sentence; falling back to the
+  /// voice at that point would repeat what the child just heard. So it is all
+  /// the recordings or none of them.
+  Future<void> say(ChefLine line) {
+    if (line.text.isEmpty && line.clips.isEmpty) return Future<void>.value();
+    if (line.clips.isEmpty || !_clips.hasAll(line.clips)) {
+      for (final clip in line.clips) {
+        if (!_clips.has(clip) && _missingClips.add(clip)) {
+          debugPrint('Silly Soup: no recording for $clip, speaking instead');
+        }
+      }
+      return speak(line.text);
+    }
+
+    final epoch = _epoch;
+    return _enqueue(() async {
+      for (final clip in line.clips) {
+        // A child's tap ends the sentence. They should not have to wait out
+        // a five-ingredient recital before their next choice is heard.
+        if (epoch != _epoch) return;
+        var played = false;
+        await _bounded(() async {
+          played = await _sink.playAsset(clip, volume: volume);
+        }, line.text);
+        if (played) continue;
+        // The manifest said this was here. Stop rather than speak the line
+        // again over the part already played.
+        if (_missingClips.add(clip)) {
+          debugPrint('Silly Soup: $clip is in the manifest but would not play');
+        }
+        return;
+      }
+    });
+  }
 
   /// Consecutive utterances that never reported finishing.
   int _unfinished = 0;

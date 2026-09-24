@@ -80,11 +80,11 @@ Worth checking on the device itself:
 ## Running the checks
 
 ```bash
-flutter test                                    # 206 tests
+flutter test                                    # 239 tests
 bun test test/web                               # the service worker and the update flow
 flutter analyze --fatal-infos --fatal-warnings  # what CI runs
 dart format --output=none --set-exit-if-changed .
-dart run tool/audio_checklist.dart              # what is left to record
+uv run tool/build_audio.py --audit --deep       # measure every recording
 ```
 
 `bun test test/web` runs `web/sw.js` and the update flow from
@@ -93,20 +93,33 @@ build a nursery is running, and `flutter test` cannot see either of them.
 
 ## Audio
 
-Audio is the most important part of this app. Clips are played from `assets/audio/phonemes` and `assets/audio/words`; anything not recorded yet falls back to the device voice (`en-GB`) and is logged — both in the adult area and by the checklist script:
+Audio is the most important part of this app, and all of it is recorded:
+267 clips under `assets/audio`, in a British voice, covering the whole of what
+the chef says. The device's own text-to-speech is now only a fallback for a
+clip that is missing, and every fallback is logged — in the adult area and by
+the audit.
 
 ```bash
-dart run tool/audio_checklist.dart               # readable checklist
-dart run tool/audio_checklist.dart --missing-only
-dart run tool/audio_checklist.dart --csv > recording-list.csv
+uv run tool/build_audio.py --plan          # what would be built, and what it says
+uv run tool/build_audio.py                 # build whatever is missing
+uv run tool/build_audio.py --force         # rebuild everything
+uv run tool/build_audio.py --audit --deep  # measure every clip and read it back
 ```
 
-The checklist tells the person recording exactly what to say for each clip, including which sounds to stretch and which to bounce.
+The one thing to know before changing anything here: **the engine is never
+asked to pronounce phonics notation.** Asking it for `sss` gets "S S S" and
+asking it for `b-b-banana` gets "buh buh banana", which is the single mistake
+a phonics app cannot make. It is asked for ordinary words, and the pure sounds
+and the stretched "sssun" are cut and held in the waveform afterwards.
 
-The voice itself is behind `SpeechEngine`, with two implementations. iOS,
-Android and desktop use `flutter_tts`; the web talks to the Web Speech API
-directly (`lib/services/speech_engine_web.dart`) for two reasons found while
-fixing the audio on mobile:
+**[`docs/audio.md`](docs/audio.md) has the rest** — how the voice was chosen
+(measured, across all 28 the API offers, rather than taken on trust), how each
+class of sound is shaped, and what the audit checks.
+
+The voice used for the fallback is behind `SpeechEngine`, with two
+implementations. iOS, Android and desktop use `flutter_tts`; the web talks to
+the Web Speech API directly (`lib/services/speech_engine_web.dart`) for two
+reasons found while fixing the audio on mobile:
 
 * `flutter_tts` on the web reuses a single utterance and, when speech
   *fails*, drops the future it handed the caller instead of completing it. A
@@ -116,22 +129,6 @@ fixing the audio on mobile:
 * A mobile browser will not speak until the page has been touched, and
   refuses silently. The engine needs a `unlock()` it can spend inside a real
   tap — `main.dart` calls it on the first pointer down, above every screen.
-
-Clips can also be synthesised with an x.ai voice model, through the Agent IAP proxy:
-
-```bash
-dart run tool/generate_audio.dart --dry-run   # what would be generated
-dart run tool/generate_audio.dart             # generate only what is missing
-dart run tool/generate_audio.dart --force     # regenerate everything
-```
-
-Generated clips are committed, and the tool skips anything already on disk — 88 files is not something to rebuild on every run. The voice is British (`en-GB`), and each phoneme clip carries an instruction not to add a vowel to the end of the sound, which is the one mistake that would make the app teach the wrong thing.
-
-**79 of the 88 clips are recorded and committed** — all 78 words and the song, generated with x.ai's `eve` voice at `en-GB`.
-
-The nine pure-sound clips are **not** shipped, and the generator skips them unless you pass `--include-phonemes`. The voice reads a bare consonant as its letter name: asking it for `t, t, t` returned a clip byte-identical to one that says `tee, tee, tee`. Teaching "tee" as the sound /t/ is the one mistake this app cannot make, so those nine need a human voice. Until they exist the adult area lists them as missing and the device voice fills in.
-
-> Accent is not settled by the request — x.ai exposes no voices list and its docs do not name accents — so "British" is a judgement made by listening to the output.
 
 ## Project structure
 
@@ -148,11 +145,13 @@ lib/
 
 assets/
 ├── data/sound_bank.json      # The word bank
-├── audio/{phonemes,words,song}/
+├── audio/manifest.json       # Which clips this build has
+├── audio/{phonemes,words,commentary,list,actions,lines,song}/
 ├── images/                   # Drop-in replacements for the emoji placeholders
 └── google_fonts/             # Poppins, bundled so nothing is fetched at runtime
 
-tool/audio_checklist.dart     # What still needs recording
+tool/build_audio.py           # Builds and audits every recording
+tool/audio_dsp.py             # Holding, bouncing and measuring a waveform
 ```
 
 ## The word bank

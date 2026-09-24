@@ -91,30 +91,6 @@ jobs:
       - name: Run web tests
         run: bun test test/web
 
-  audio-checklist:
-    name: Audio checklist
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      # Exits non-zero while clips are outstanding, which is the normal state
-      # until the recordings are made. Reported, not enforced — the app falls
-      # back to the device voice and logs what is missing.
-      - name: List outstanding recordings
-        continue-on-error: true
-        run: dart run tool/audio_checklist.dart
-
   build-web:
     name: Build & Deploy Web
     needs: [lint, test, web-tests]
