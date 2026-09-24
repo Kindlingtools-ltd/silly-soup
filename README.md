@@ -26,7 +26,7 @@ Letters are introduced in **Phase 2**, not Phase One, so the app is sounds and p
 - **The Silly Soup Song** — original words to the public-domain tune of *Pop Goes the Weasel*, replaceable with an adult's own recording
 - **Adult area** — behind a three-second press-and-hold: sounds and their order, pantry size, Phase 2 letters, drag vs tap, mirror, volume, reduced motion, whiteboard mode
 - **Whiteboard mode** — extra-large and adult-paced, for group sessions
-- **Works offline** — installable PWA with its own service worker, no network calls at runtime
+- **Works offline** — installable PWA with its own service worker; the only runtime network call is the analytics tag, and the app carries on without it
 
 ## Requirements
 
@@ -41,6 +41,12 @@ flutter run -d chrome     # web
 flutter run -d ios        # iOS simulator
 flutter run -d android    # Android emulator
 ```
+
+`flutter pub get` signs off with *"2 packages have newer versions incompatible
+with dependency constraints"*. That is expected and nothing is wrong: the two it
+means, `material_color_utilities` and `test_api`, are pinned to an exact version
+by the Flutter SDK itself, not by us — see the note at the top of `pubspec.yaml`.
+Every dependency this app declares is at its latest published version.
 
 ## Testing it on a tablet or a phone
 
@@ -202,7 +208,13 @@ The deploy step reads two repository secrets, `CLOUDFLARE_API_TOKEN` and `CLOUDF
 
 ## Privacy
 
-No accounts, no analytics, no tracking, no network calls at runtime. Everything stays on the device. See [PRIVACY.md](PRIVACY.md).
+No accounts, and nothing collected about a child. Everything a child does stays on the device.
+
+The web build carries Google Analytics 4 (`G-DEQ5M9ZK36`), like the other Kindling apps, measuring how the app is used rather than who is using it: screens opened, sounds picked, pantry words added, soups finished or left, settings changed. Nothing from the camera or microphone is sent, no text an adult types is sent, and advertising is denied at the tag — `ad_storage`, `ad_user_data` and `ad_personalization` are all `denied`, with Google Signals off.
+
+The tag fires no page views of its own (`send_page_view: false`): the app is one page whose URL never changes, so screen views come from a `NavigatorObserver` instead — see `lib/services/analytics_route_observer.dart`. Analytics is web-only; the conditional import is keyed on `dart.library.js_interop` rather than `dart.library.html`, because the app is built with `--wasm` and `dart.library.html` is false there.
+
+Every event, and everything deliberately left out, is listed in [PRIVACY.md](PRIVACY.md).
 
 ## Licence
 

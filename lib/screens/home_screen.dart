@@ -114,11 +114,7 @@ class HomeScreen extends StatelessWidget {
                   top: 4,
                   right: 4,
                   child: AdultGateButton(
-                    onUnlocked: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const AdultScreen(),
-                      ),
-                    ),
+                    onUnlocked: () => _openAdultArea(context),
                   ),
                 ),
               ],
@@ -130,9 +126,24 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _openSoup(BuildContext context, PhonemeSound sound) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => SoupScreen(sound: sound)));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        // Named so the route observer can report the screen view. See
+        // AnalyticsRouteObserver.
+        settings: const RouteSettings(name: 'soup'),
+        builder: (_) => SoupScreen(sound: sound),
+      ),
+    );
+  }
+
+  void _openAdultArea(BuildContext context) {
+    context.read<AppProvider>().analytics.logAdultAreaOpened();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: 'adult_area'),
+        builder: (_) => const AdultScreen(),
+      ),
+    );
   }
 }
 

@@ -11,17 +11,27 @@ import '../services/services.dart';
 /// the current soup before touching state: a child who backs out mid-way
 /// must not be talked at by a chef from the soup before.
 class SoupProvider extends ChangeNotifier {
-  SoupProvider({required AudioService audio, Random? random})
+  SoupProvider({
+    required AudioService audio,
+    AnalyticsService? analytics,
+    Random? random,
+    DateTime Function()? now,
+  })
     // The lint wants `this._audio`, but Dart does not allow a private name as
     // a named parameter, so the field is assigned the long way round.
     // ignore: prefer_initializing_formals
     : _audio = audio,
-      _random = random ?? Random();
+       _analytics = analytics ?? AnalyticsService(),
+       _random = random ?? Random(),
+       _now = now ?? DateTime.now;
 
   final AudioService _audio;
+  final AnalyticsService _analytics;
   final Random _random;
+  final DateTime Function() _now;
 
   SoupSession? _session;
+  DateTime? _startedAt;
   String _chefLine = '';
   bool _isStirring = false;
   bool _isChefBusy = false;
@@ -58,10 +68,13 @@ class SoupProvider extends ChangeNotifier {
     required AppSettings settings,
   }) {
     final generation = ++_generation;
+    // "Make another soup?" restarts without leaving the screen, so the soup
+    // being replaced is abandoned in exactly the way backing out is.
+    _reportAbandonedSoup();
     _audio.interrupt();
     final candidates = bank.wordsFor(sound.id);
 
-    _session = SoupSession(
+    final session = SoupSession(
       sound: sound,
       pantry: SoupService.buildPantry(
         sound: sound,
@@ -75,12 +88,15 @@ class SoupProvider extends ChangeNotifier {
         random: _random,
       ),
     );
+    _session = session;
     _chefLine = 'My sound today is ${RecitalService.pureSound(sound)}.';
     _isChefBusy = false;
     _isStirring = false;
     _chefItemsShown = 0;
+    _startedAt = _now();
     notifyListeners();
 
+    _analytics.logSoupStarted(sound, pantrySize: session.pantry.length);
     _speakSound(generation, sound);
   }
 
@@ -89,6 +105,7 @@ class SoupProvider extends ChangeNotifier {
     final sound = _session?.sound;
     if (sound == null) return;
     _setChefLine('My sound today is ${RecitalService.pureSound(sound)}.');
+    _analytics.logSoundRepeated(sound);
     await _audio.playSound(sound);
   }
 
@@ -100,6 +117,7 @@ class SoupProvider extends ChangeNotifier {
     final sound = session.sound;
 
     _isChefBusy = true;
+    _analytics.logChefModelled(sound);
     _update(session.withStage(SoupStage.chefModelling));
     _setChefLine('Watch me make my silly soup!');
     await _audio.speak('Watch me make my silly soup!');
@@ -141,6 +159,7 @@ class SoupProvider extends ChangeNotifier {
     final session = _session;
     if (session == null) return;
     _isChefBusy = false;
+    _analytics.logChildsTurnStarted(session.sound);
     _update(session.withStage(SoupStage.childsTurn));
     _setChefLine('Now you make a silly soup!');
     _audio.speak('Now you make a silly soup!');
@@ -158,6 +177,11 @@ class SoupProvider extends ChangeNotifier {
     await _audio.interrupt();
     final next = session.addToPot(word);
     _update(next);
+    _analytics.logIngredientAdded(
+      sound: sound,
+      word: word,
+      potSize: next.pot.length,
+    );
     _setChefLine(RecitalService.commentateOnItem(word, sound));
     await _audio.playEmphasisedWord(word, sound);
     if (!_isCurrent(generation)) return;
@@ -186,11 +210,22 @@ class SoupProvider extends ChangeNotifier {
   void removeItem(SoupWord word) {
     final session = _session;
     if (session == null) return;
-    _update(session.removeFromPot(word));
+    if (!session.pot.contains(word)) return;
+    final next = session.removeFromPot(word);
+    _analytics.logIngredientRemoved(
+      sound: session.sound,
+      word: word,
+      potSize: next.pot.length,
+    );
+    _update(next);
   }
 
   /// Give the pot a stir on purpose.
-  Future<void> stirOnDemand() => _stir(_generation);
+  Future<void> stirOnDemand() {
+    final session = _session;
+    if (session != null) _analytics.logSoupStirred(session.sound);
+    return _stir(_generation);
+  }
 
   /// Finish: silly tasting, then "Make another soup?".
   Future<void> finish() async {
@@ -199,6 +234,11 @@ class SoupProvider extends ChangeNotifier {
     final generation = _generation;
 
     _update(session.withStage(SoupStage.tasting));
+    _analytics.logSoupFinished(
+      sound: session.sound,
+      ingredientCount: session.pot.length,
+      duration: _elapsed(),
+    );
     final recital = RecitalService.reciteFinishedSoup(
       session.pot,
       session.sound,
@@ -214,14 +254,47 @@ class SoupProvider extends ChangeNotifier {
 
   /// Leave the kitchen.
   void clear() {
+    _reportAbandonedSoup();
     _generation++;
     _session = null;
+    _startedAt = null;
     _chefLine = '';
     _isChefBusy = false;
     _isStirring = false;
     _chefItemsShown = 0;
     _audio.stop();
     notifyListeners();
+  }
+
+  /// A soup left before the tasting. Reported on the way out, whether that
+  /// is backing out of the screen or starting a fresh soup over the top.
+  void _reportAbandonedSoup() {
+    final session = _session;
+    if (session == null || session.stage == SoupStage.tasting) return;
+    _analytics.logSoupAbandoned(
+      sound: session.sound,
+      stage: session.stage,
+      ingredientCount: session.pot.length,
+      duration: _elapsed(),
+    );
+  }
+
+  /// Last line of defence for the abandonment signal.
+  ///
+  /// The screen calls [clear] on the way out, which is where a soup left
+  /// half-made is normally reported. This catches the case where the provider
+  /// is torn down without that happening; [clear] has already emptied the
+  /// session by then, so a soup is never reported twice.
+  @override
+  void dispose() {
+    _reportAbandonedSoup();
+    _session = null;
+    super.dispose();
+  }
+
+  Duration _elapsed() {
+    final startedAt = _startedAt;
+    return startedAt == null ? Duration.zero : _now().difference(startedAt);
   }
 
   Future<void> _praise() async {

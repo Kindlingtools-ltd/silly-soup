@@ -362,11 +362,15 @@ class _PrivacyNote extends StatelessWidget {
     return _Section(
       title: 'Privacy',
       child: Text(
-        'Silly Soup has no accounts, no analytics and no tracking, and makes '
-        'no network calls while it runs. Everything stays on this device. The '
-        'camera and microphone are only ever used while a grown-up has turned '
-        'them on, and nothing is recorded except audio a grown-up chooses to '
-        'save as their own content.',
+        'Silly Soup has no accounts and collects nothing about your children. '
+        'Everything a child does, and everything you set up here, stays on '
+        'this device. The camera and microphone are only ever used while a '
+        'grown-up has turned them on, and nothing is recorded except audio a '
+        'grown-up chooses to save as their own content.\n\n'
+        'The web version counts how the app itself is used — which sounds are '
+        'picked, how many things go in the pot, which settings you change — '
+        'using Google Analytics. No names, no recordings, no pictures and no '
+        'advertising. The full list is in PRIVACY.md on the project page.',
         style: SoupTypography.body(context),
       ),
     );

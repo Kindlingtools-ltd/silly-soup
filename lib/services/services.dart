@@ -1,3 +1,6 @@
+export 'analytics_route_observer.dart';
+export 'analytics_service.dart';
+export 'analytics_sink.dart';
 export 'audio_service.dart';
 export 'audio_sink.dart';
 export 'custom_content_store.dart';

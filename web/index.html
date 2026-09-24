@@ -48,10 +48,43 @@
   <link rel="manifest" href="manifest.json">
 
   <!--
-    No analytics, no tag manager, no font CDN, no third-party script of any
-    kind. Poppins is bundled with the app. This page must not make a network
-    call the app itself would not make — see PRIVACY.md.
+    Google tag (gtag.js) — the only third-party script on this page, and the
+    only network call the app makes once it is running. There is still no tag
+    manager and no font CDN: Poppins is bundled with the app.
+
+    What is measured, and what is deliberately not, is written down in
+    PRIVACY.md. Three things about this block are load-bearing:
+
+      * Advertising is denied before the tag configures itself, so nothing
+        here can become an ad audience. These are three- to five-year-olds.
+        GA4 drops the IP address by default; there is no `anonymize_ip` to
+        set on a GA4 property.
+      * `send_page_view` is off. Silly Soup is one page whose URL never
+        changes, so a tag-fired page view would count the sound picker once
+        and the soup never. The app sends its own instead — see
+        lib/services/analytics_route_observer.dart.
+      * The app never sends anything a child typed, said or was filmed doing,
+        because it never has any of it. See PRIVACY.md.
   -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DEQ5M9ZK36"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    // Before config, or it does not apply to the first hit.
+    gtag('consent', 'default', {
+      ad_storage: 'denied',
+      ad_user_data: 'denied',
+      ad_personalization: 'denied'
+    });
+
+    gtag('js', new Date());
+    gtag('config', 'G-DEQ5M9ZK36', {
+      send_page_view: false,
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false
+    });
+  </script>
 
   <style>
     html, body {

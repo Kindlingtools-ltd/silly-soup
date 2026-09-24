@@ -7,11 +7,19 @@ version: 1.0.0+1
 environment:
   sdk: ^3.13.4
 
+# `flutter pub get` finishes with "2 packages have newer versions incompatible
+# with dependency constraints", naming material_color_utilities and test_api.
+# Neither is ours to move: the Flutter SDK pins both to an exact version because
+# the framework and flutter_test reach into their internals —
+#   material_color_utilities  packages/flutter/pubspec.yaml       flutter#185017
+#   test_api                  packages/flutter_test/pubspec.yaml  flutter#185016
+# A dependency_overrides entry only trades that line for a permanent
+# "(overridden)" one and puts us outside the SDK's tested set, so leave them be;
+# they clear when Flutter bumps its own pins. Everything we declare here is at
+# its latest published version.
 dependencies:
   flutter:
     sdk: flutter
-
-  cupertino_icons: ^1.0.9
 
   # Typography. Poppins is bundled under assets/google_fonts so the app never
   # reaches fonts.gstatic.com at runtime — see PRIVACY.md.
