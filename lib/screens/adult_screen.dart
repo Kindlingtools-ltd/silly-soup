@@ -320,7 +320,7 @@ class _SoundRow extends StatelessWidget {
                   note.isEmpty ? count : '$count — $note',
                   style: thin
                       ? SoupTypography.label(context)
-                            .copyWith(color: SoupColours.primary)
+                            .copyWith(color: SoupColours.warning)
                       : null,
                 ),
               ],
@@ -347,7 +347,7 @@ class _SoundRow extends StatelessWidget {
                   note,
                   style: thin
                       ? SoupTypography.label(context)
-                            .copyWith(color: SoupColours.primary)
+                            .copyWith(color: SoupColours.warning)
                       : null,
                 ),
           trailing: controls,
@@ -379,7 +379,7 @@ class _ContentCheck extends StatelessWidget {
                     ? Icons.error_outline_rounded
                     : Icons.info_outline_rounded,
                 color: issue.isError
-                    ? SoupColours.primary
+                    ? SoupColours.warning
                     : SoupColours.textSecondary,
               ),
               title: Text(issue.message),
