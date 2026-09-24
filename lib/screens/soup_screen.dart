@@ -23,7 +23,11 @@ class SoupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.read<AppProvider>();
     return ChangeNotifierProvider<SoupProvider>(
-      create: (_) => SoupProvider(audio: app.audio, analytics: app.analytics),
+      create: (_) => SoupProvider(
+        audio: app.audio,
+        voice: app.chefVoice,
+        analytics: app.analytics,
+      ),
       child: _SoupView(sound: sound),
     );
   }
@@ -251,7 +255,7 @@ class _TopBar extends StatelessWidget {
             color: SoupColours.primary,
             onPressed: () {
               app.analytics.logSongPlayed();
-              app.audio.playSong();
+              app.audio.playSong(app.chefVoice.song());
             },
             icon: const Icon(Icons.music_note_rounded),
           ),

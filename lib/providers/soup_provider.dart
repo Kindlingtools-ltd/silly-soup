@@ -13,6 +13,7 @@ import '../services/services.dart';
 class SoupProvider extends ChangeNotifier {
   SoupProvider({
     required AudioService audio,
+    ChefVoice voice = const ChefVoice(),
     AnalyticsService? analytics,
     Random? random,
     DateTime Function()? now,
@@ -21,11 +22,14 @@ class SoupProvider extends ChangeNotifier {
     // a named parameter, so the field is assigned the long way round.
     // ignore: prefer_initializing_formals
     : _audio = audio,
+       // ignore: prefer_initializing_formals
+       _voice = voice,
        _analytics = analytics ?? AnalyticsService(),
        _random = random ?? Random(),
        _now = now ?? DateTime.now;
 
   final AudioService _audio;
+  final ChefVoice _voice;
   final AnalyticsService _analytics;
   final Random _random;
   final DateTime Function() _now;
@@ -89,7 +93,7 @@ class SoupProvider extends ChangeNotifier {
       ),
     );
     _session = session;
-    _chefLine = 'My sound today is ${RecitalService.pureSound(sound)}.';
+    _chefLine = _mySoundToday(sound);
     _isChefBusy = false;
     _isStirring = false;
     _chefItemsShown = 0;
@@ -104,9 +108,9 @@ class SoupProvider extends ChangeNotifier {
   Future<void> repeatSound() async {
     final sound = _session?.sound;
     if (sound == null) return;
-    _setChefLine('My sound today is ${RecitalService.pureSound(sound)}.');
+    _setChefLine(_mySoundToday(sound));
     _analytics.logSoundRepeated(sound);
-    await _audio.playSound(sound);
+    await _audio.play(_voice.pureSound(sound));
   }
 
   /// The chef makes a soup first, so the child has seen it done.
@@ -119,8 +123,9 @@ class SoupProvider extends ChangeNotifier {
     _isChefBusy = true;
     _analytics.logChefModelled(sound);
     _update(session.withStage(SoupStage.chefModelling));
-    _setChefLine('Watch me make my silly soup!');
-    await _audio.speak('Watch me make my silly soup!');
+    final opening = _voice.phrase(ChefScript.watchMeMake);
+    _setChefLine(opening.text);
+    await _audio.play(opening);
     if (!_isCurrent(generation)) return;
 
     for (final word in session.chefSoup) {
@@ -129,18 +134,19 @@ class SoupProvider extends ChangeNotifier {
       // The item goes in as it is named, so the child sees the pot fill up
       // one thing at a time. Showing all three at once demonstrates nothing.
       _chefItemsShown++;
-      _setChefLine(RecitalService.commentateOnItem(word, sound));
+      final commentary = _voice.commentateOnItem(word, sound);
+      _setChefLine(commentary.text);
       notifyListeners();
-      await _audio.playEmphasisedWord(word, sound);
+      await _audio.play(commentary);
       if (!_isCurrent(generation)) return;
       await _stir(generation);
     }
 
     await _pause(const Duration(milliseconds: 600));
     if (!_isCurrent(generation)) return;
-    final recital = RecitalService.reciteList(session.chefSoup, sound);
-    _setChefLine(recital);
-    await _audio.speak(recital);
+    final recital = _voice.reciteList(session.chefSoup, sound);
+    _setChefLine(recital.text);
+    await _audio.play(recital);
     if (!_isCurrent(generation)) return;
 
     await _pause(const Duration(milliseconds: 900));
@@ -161,8 +167,9 @@ class SoupProvider extends ChangeNotifier {
     _isChefBusy = false;
     _analytics.logChildsTurnStarted(session.sound);
     _update(session.withStage(SoupStage.childsTurn));
-    _setChefLine('Now you make a silly soup!');
-    _audio.speak('Now you make a silly soup!');
+    final handover = _voice.phrase(ChefScript.nowYouMake);
+    _setChefLine(handover.text);
+    _audio.play(handover);
   }
 
   /// The child puts an item in. Always accepted, always celebrated.
@@ -182,8 +189,9 @@ class SoupProvider extends ChangeNotifier {
       word: word,
       potSize: next.pot.length,
     );
-    _setChefLine(RecitalService.commentateOnItem(word, sound));
-    await _audio.playEmphasisedWord(word, sound);
+    final commentary = _voice.commentateOnItem(word, sound);
+    _setChefLine(commentary.text);
+    await _audio.play(commentary);
     if (!_isCurrent(generation)) return;
 
     await _stir(generation);
@@ -191,9 +199,9 @@ class SoupProvider extends ChangeNotifier {
 
     final current = _session;
     if (current == null) return;
-    final recital = RecitalService.reciteList(current.pot, sound);
-    _setChefLine(recital);
-    await _audio.speak(recital);
+    final recital = _voice.reciteList(current.pot, sound);
+    _setChefLine(recital.text);
+    await _audio.play(recital);
     if (!_isCurrent(generation)) return;
 
     // Praise every few items rather than after each one, so it stays warm
@@ -239,12 +247,9 @@ class SoupProvider extends ChangeNotifier {
       ingredientCount: session.pot.length,
       duration: _elapsed(),
     );
-    final recital = RecitalService.reciteFinishedSoup(
-      session.pot,
-      session.sound,
-    );
-    _setChefLine(recital);
-    await _audio.speak(recital);
+    final recital = _voice.reciteFinishedSoup(session.pot, session.sound);
+    _setChefLine(recital.text);
+    await _audio.play(recital);
     if (!_isCurrent(generation)) return;
 
     await _pause(const Duration(milliseconds: 700));
@@ -298,19 +303,26 @@ class SoupProvider extends ChangeNotifier {
   }
 
   Future<void> _praise() async {
-    final line = RecitalService.praise(_praiseCounter++);
-    _setChefLine(line);
-    await _audio.speak(line);
+    final line = _voice.praise(_praiseCounter++);
+    if (line.isEmpty) return;
+    _setChefLine(line.text);
+    await _audio.play(line);
   }
 
+  /// The chef's opening line. The sound itself is played as a recording
+  /// straight after, so the caption names it and the voice demonstrates it.
+  String _mySoundToday(PhonemeSound sound) =>
+      'My sound today is ${RecitalService.pureSound(sound)}.';
+
   Future<void> _speakSound(int generation, PhonemeSound sound) async {
-    await _audio.playSound(sound);
+    await _audio.play(_voice.pureSound(sound));
     if (!_isCurrent(generation)) return;
     if (sound.action.isEmpty) return;
     await _pause(const Duration(milliseconds: 500));
     if (!_isCurrent(generation)) return;
-    _setChefLine(sound.action);
-    await _audio.speak(sound.action);
+    final action = _voice.action(sound);
+    _setChefLine(action.text);
+    await _audio.play(action);
   }
 
   Future<void> _stir(int generation) async {

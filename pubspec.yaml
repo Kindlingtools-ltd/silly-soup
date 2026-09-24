@@ -61,8 +61,16 @@ flutter:
   assets:
     - assets/data/
     - assets/images/
+    # The chef's voice. Every line it says is a recording under one of these:
+    # the pure sounds, the plain words, the words with their first sound
+    # stretched or bounced, the fixed phrases a recital is built from, the
+    # praise, the sound actions, and the song.
     - assets/audio/phonemes/
     - assets/audio/words/
+    - assets/audio/emphasis/
+    - assets/audio/phrases/
+    - assets/audio/praise/
+    - assets/audio/actions/
     - assets/audio/song/
     - assets/google_fonts/
     - assets/kindling_logo.svg

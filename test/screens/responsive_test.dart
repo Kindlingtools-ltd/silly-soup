@@ -28,18 +28,28 @@ const _viewports = <String, Size>{
   'tablet landscape': Size(1024, 768),
 };
 
-/// The real sound bank, read off disk.
+/// The real content, read off disk.
 ///
 /// `rootBundle` serves the first test in a file and then hangs for every one
-/// after it, so the bank comes from the file the app ships instead — same
-/// content, no platform channel.
-final String _bankJson = File('assets/data/sound_bank.json').readAsStringSync();
+/// after it, so everything the app loads at startup comes from the files it
+/// ships instead — same content, no platform channel. Anything the app reads
+/// and this does not serve hangs the whole file, so this list has to keep up
+/// with [WordBankService].
+final Map<String, String> _content = {
+  for (final path in [
+    WordBankService.bankAssetPath,
+    WordBankService.scriptAssetPath,
+    ClipCatalogue.manifestAssetPath,
+  ])
+    path: File(path).readAsStringSync(),
+};
 
 class _BankBundle extends CachingAssetBundle {
   @override
   Future<ByteData> load(String key) async {
-    if (key == WordBankService.bankAssetPath) {
-      return ByteData.sublistView(Uint8List.fromList(utf8.encode(_bankJson)));
+    final content = _content[key];
+    if (content != null) {
+      return ByteData.sublistView(Uint8List.fromList(utf8.encode(content)));
     }
     throw FlutterError('No test asset for $key');
   }

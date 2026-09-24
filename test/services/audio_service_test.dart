@@ -4,8 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:silly_soup/models/models.dart';
 import 'package:silly_soup/services/services.dart';
 
-import '../test_data.dart';
-
 void main() {
   group('clips come first', () {
     test('plays the recording when there is one', () async {
@@ -14,7 +12,7 @@ void main() {
       );
       final audio = AudioService(sink: sink);
 
-      await audio.playSound(soundS);
+      await audio.play(const Utterance(['assets/audio/phonemes/s.mp3'], 'sss'));
 
       expect(sink.playedAssets, ['assets/audio/phonemes/s.mp3']);
       expect(sink.spokenText, isEmpty);
@@ -27,7 +25,9 @@ void main() {
         final sink = RecordingAudioSink();
         final audio = AudioService(sink: sink);
 
-        await audio.playSound(soundS);
+        await audio.play(
+          const Utterance(['assets/audio/phonemes/s.mp3'], 'sss'),
+        );
 
         expect(sink.playedAssets, isEmpty);
         expect(sink.spokenText, ['sss']);
@@ -39,71 +39,99 @@ void main() {
       'a missing clip is logged once, however often it is asked for',
       () async {
         final audio = AudioService(sink: RecordingAudioSink());
+        const sss = Utterance(['assets/audio/phonemes/s.mp3'], 'sss');
 
-        await audio.playSound(soundS);
-        await audio.playSound(soundS);
-        await audio.playSound(soundS);
+        await audio.play(sss);
+        await audio.play(sss);
+        await audio.play(sss);
 
         expect(audio.missingClips, hasLength(1));
       },
     );
 
-    test('a sound with no clip at all just speaks, and logs nothing', () async {
-      final sink = RecordingAudioSink();
-      final audio = AudioService(sink: sink);
+    test(
+      'an utterance with no clip at all just speaks, and logs nothing',
+      () async {
+        final sink = RecordingAudioSink();
+        final audio = AudioService(sink: sink);
 
-      await audio.playSound(soundB); // no audio field
+        await audio.play(const Utterance([], 'b-b-b'));
 
-      expect(sink.spokenText, ['b-b-b']);
-      expect(audio.missingClips, isEmpty);
-    });
-
-    test('a word plays its own recording when there is one', () async {
-      final sink = RecordingAudioSink(
-        availableAssets: {'assets/audio/words/sun.mp3'},
-      );
-      final audio = AudioService(sink: sink);
-
-      await audio.playWord(word('sun', 's', audio: 'words/sun.mp3'));
-
-      expect(sink.playedAssets, ['assets/audio/words/sun.mp3']);
-    });
+        expect(sink.spokenText, ['b-b-b']);
+        expect(audio.missingClips, isEmpty);
+      },
+    );
   });
 
-  group('the chef\'s own voice', () {
-    test('emphasis is always spoken — there is no clip for "sssun"', () async {
+  group('a line built from several clips', () {
+    const recital = Utterance([
+      'assets/audio/phrases/inGoes.mp3',
+      'assets/audio/emphasis/sun.mp3',
+      'assets/audio/emphasis/sock.mp3',
+    ], 'In goes a sssun… a sssock…');
+
+    test('plays them in order, as one utterance', () async {
+      final sink = RecordingAudioSink(availableAssets: recital.clips.toSet());
+      final audio = AudioService(sink: sink);
+
+      await audio.play(recital);
+
+      expect(sink.playedAssets, recital.clips);
+      expect(sink.spokenText, isEmpty);
+    });
+
+    test('speaks the whole line rather than half of it', () async {
+      // The middle clip is missing. Playing "In goes" and then stopping would
+      // leave the child listening to an unfinished sentence, so the line is
+      // spoken instead.
       final sink = RecordingAudioSink(
-        availableAssets: {'assets/audio/words/sun.mp3'},
+        availableAssets: {
+          'assets/audio/phrases/inGoes.mp3',
+          'assets/audio/emphasis/sock.mp3',
+        },
       );
       final audio = AudioService(sink: sink);
 
-      await audio.playEmphasisedWord(
-        word('sun', 's', audio: 'words/sun.mp3'),
-        soundS,
-      );
+      await audio.play(recital);
 
-      expect(sink.spokenText, ['sssun']);
-      expect(sink.playedAssets, isEmpty);
+      expect(sink.spokenText, [recital.text]);
+      expect(audio.missingClips, ['assets/audio/emphasis/sun.mp3']);
+    });
+
+    test('a tap part way through drops the rest of it', () async {
+      final sink = RecordingAudioSink(availableAssets: recital.clips.toSet());
+      final audio = AudioService(sink: sink);
+
+      final playing = audio.play(recital);
+      await audio.interrupt();
+      await playing;
+
+      // Whatever had started is allowed to finish; nothing queued behind the
+      // interruption arrives after the child's own choice.
+      expect(sink.playedAssets.length, lessThan(recital.clips.length));
+      expect(sink.stopCount, greaterThan(0));
     });
   });
 
   group('the song', () {
+    final song = Utterance([SoupSong.audioAssetPath], SoupSong.spokenLyrics);
+
     test('an adult recording wins over the bundled one', () async {
       final sink = RecordingAudioSink(
         availableAssets: {'custom/our-song.m4a', SoupSong.audioAssetPath},
       );
       final audio = AudioService(sink: sink);
 
-      await audio.playSong(customRecordingPath: 'custom/our-song.m4a');
+      await audio.playSong(song, customRecordingPath: 'custom/our-song.m4a');
 
-      expect(sink.playedAssets, ['custom/our-song.m4a']);
+      expect(sink.playedAssets.first, 'custom/our-song.m4a');
     });
 
     test('with no recording anywhere the words are spoken', () async {
       final sink = RecordingAudioSink();
       final audio = AudioService(sink: sink);
 
-      await audio.playSong();
+      await audio.playSong(song);
 
       expect(sink.spokenText, [SoupSong.spokenLyrics]);
       expect(audio.missingClips, [SoupSong.audioAssetPath]);
@@ -165,29 +193,25 @@ void main() {
     });
   });
 
-  test('a silent device plays the recorded word rather than nothing', () async {
-    final sink = RecordingAudioSink(
-      availableAssets: {'assets/audio/words/sun.mp3'},
+  test('a device with no voice still plays every recording', () async {
+    // The guard this replaces: a clip used to borrow the shortened budget a
+    // dead voice earns, so on a device whose speech never reports finishing,
+    // recordings were cut off a quarter of a second in — and recordings are
+    // now the whole of what the child hears.
+    final sink = _MuteVoiceSink(
+      availableAssets: {'assets/audio/emphasis/sun.mp3'},
     );
     final audio = AudioService(sink: sink);
-    final sun = word('sun', 's', audio: 'words/sun.mp3');
 
-    // Nothing is spoken until the voice is known to be silent.
-    await audio.playEmphasisedWord(sun, soundS);
-    expect(sink.playedAssets, isEmpty);
-    expect(sink.spokenText, ['sssun']);
+    await audio.speak('one');
+    await audio.speak('two');
+    expect(audio.voiceIsSilent, isTrue);
 
-    // Once it is, the recording carries it instead.
-    final silent = AudioService(sink: SilentSink());
-    await silent.speak('one');
-    await silent.speak('two');
-    expect(silent.voiceIsSilent, isTrue);
+    await audio.play(
+      const Utterance(['assets/audio/emphasis/sun.mp3'], 'a sssun'),
+    );
 
-    final recovered = AudioService(sink: sink);
-    for (var i = 0; i < 2; i++) {
-      await recovered.speak('x');
-    }
-    expect(sink.spokenText, contains('x'));
+    expect(sink.playedAssets, ['assets/audio/emphasis/sun.mp3']);
   });
 
   test('stop reaches the sink so a child never has to wait', () async {
@@ -240,6 +264,15 @@ void main() {
       },
     );
   });
+}
+
+/// A sink whose clips play normally but whose voice never finishes speaking.
+class _MuteVoiceSink extends RecordingAudioSink {
+  _MuteVoiceSink({super.availableAssets});
+
+  @override
+  Future<void> speak(String text, {required double volume}) =>
+      Completer<void>().future;
 }
 
 /// A sink that accepts an utterance and never finishes it — a device with no

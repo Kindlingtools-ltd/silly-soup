@@ -11,6 +11,7 @@ class SoupWord {
     required this.word,
     required this.phoneme,
     required this.image,
+    this.pronunciation = '',
     this.audio,
     this.hasCluster = false,
     this.difficulty = 1,
@@ -25,6 +26,7 @@ class SoupWord {
       word: (json['word'] as String? ?? '').trim(),
       phoneme: (json['phoneme'] as String? ?? '').trim(),
       image: (json['image'] as String? ?? '').trim(),
+      pronunciation: (json['pronunciation'] as String? ?? '').trim(),
       audio: (json['audio'] as String?)?.trim(),
       hasCluster: json['hasCluster'] as bool? ?? false,
       difficulty: json['difficulty'] as int? ?? 1,
@@ -44,6 +46,16 @@ class SoupWord {
 
   /// Picture for the pantry shelf. See [WordImage] for the prefixes.
   final String image;
+
+  /// The word in IPA, between slashes: `/bəˈnɑːnə/`.
+  ///
+  /// Received Pronunciation, because the children are in England and the
+  /// voice API has no British English to ask for — see
+  /// [PhonemeSound.pronunciation]. This is where "banana" gets its British
+  /// BATH vowel and "newspaper" keeps its yod, and it is also what lets the
+  /// chef stretch the first sound: the transcription always starts with the
+  /// sound the word is filed under. Empty for adult-recorded words.
+  final String pronunciation;
 
   /// Path of the recorded clip, relative to `assets/audio/`.
   /// Null or missing means "fall back to speech and log it".
@@ -92,6 +104,7 @@ class SoupWord {
       'word': word,
       'phoneme': phoneme,
       'image': image,
+      if (pronunciation.isNotEmpty) 'pronunciation': pronunciation,
       'audio': audio,
       'hasCluster': hasCluster,
       'difficulty': difficulty,
@@ -106,6 +119,7 @@ class SoupWord {
     String? word,
     String? phoneme,
     String? image,
+    String? pronunciation,
     String? audio,
     bool? hasCluster,
     int? difficulty,
@@ -118,6 +132,7 @@ class SoupWord {
       word: word ?? this.word,
       phoneme: phoneme ?? this.phoneme,
       image: image ?? this.image,
+      pronunciation: pronunciation ?? this.pronunciation,
       audio: audio ?? this.audio,
       hasCluster: hasCluster ?? this.hasCluster,
       difficulty: difficulty ?? this.difficulty,

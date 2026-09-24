@@ -1,5 +1,6 @@
 export 'app_settings.dart';
 export 'articulation.dart';
+export 'chef_script.dart';
 export 'mouth_shape.dart';
 export 'phoneme_sound.dart';
 export 'sound_bank.dart';

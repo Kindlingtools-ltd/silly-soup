@@ -87,17 +87,28 @@ dart run tool/audio_checklist.dart              # what is left to record
 
 ## Audio
 
-Audio is the most important part of this app. Clips are played from `assets/audio/phonemes` and `assets/audio/words`; anything not recorded yet falls back to the device voice (`en-GB`) and is logged — both in the adult area and by the checklist script:
+Audio is the whole of this app, so all of it is recorded: **189 clips, 1.9 MiB** — the nine pure sounds, all 78 words, all 78 words again with their first sound stretched or bounced, the chef's fixed phrases, the praise lines, the sound actions and the song. The device voice is now only a fallback, not the thing a child mostly hears.
+
+`docs/AUDIO.md` is the full account: how British English is obtained, which of x.ai's 28 voices can produce a clean pure sound and which cannot, and why every clip is recorded several times and measured before one is kept. The short version:
+
+* **`en-GB` is not a language x.ai takes.** It documents twenty BCP-47 codes and that is not one of them — and it accepts the string anyway, silently, which is how the first pass at this ended up sounding American. The accent comes from the `pronunciation` field on every sound and word: Received Pronunciation in IPA, passed to the API's pronunciation map. `/bəˈnɑːnə/`, not `/bəˈnænə/`.
+* **The pure sounds need IPA to come out pure.** Asked for the text `sss`, the voice says the letter name "ess". Asked for `/sːː/`, it produces one unbroken stretch of friction with no vowel in it.
+* **The API is not deterministic**, so no single take can be trusted. Each clip is recorded four times (eight for a pure sound), every take is measured for silence, clipping, length, burst count and stray voicing, and the best survivor is trimmed, levelled and encoded. `/s/` took six takes to pass.
 
 ```bash
-dart run tool/audio_checklist.dart               # readable checklist
-dart run tool/audio_checklist.dart --missing-only
-dart run tool/audio_checklist.dart --csv > recording-list.csv
+pip install -r tool/requirements.txt
+
+python3 tool/generate_audio.py --dry-run     # what is missing
+python3 tool/generate_audio.py               # record what is missing
+python3 tool/generate_audio.py --audit       # check every committed clip still plays
+dart run tool/audio_checklist.dart           # the list for a person recording it by hand
 ```
 
-The checklist tells the person recording exactly what to say for each clip, including which sounds to stretch and which to bounce.
+Generated clips are committed and the tool never re-records one that exists. That is not only about cost: because the takes differ, regenerating would quietly swap measured clips for untested ones.
 
-The voice itself is behind `SpeechEngine`, with two implementations. iOS,
+A child's choices cannot be pre-recorded, so the chef builds a sentence out of fragments: `phrases/inGoes` + `emphasis/sun` + `emphasis/sock` is "In goes a sssun… a sssock…". `ChefVoice` decides that and hands back both the clips and the same line in words; if any one clip in a line is absent, the whole line is spoken rather than played, because half a sentence then silence is worse. `assets/data/chef_script.json` holds the fixed lines, shared by the app and the audio tool so a caption can never disagree with the clip under it.
+
+The fallback voice itself is behind `SpeechEngine`, with two implementations. iOS,
 Android and desktop use `flutter_tts`; the web talks to the Web Speech API
 directly (`lib/services/speech_engine_web.dart`) for two reasons found while
 fixing the audio on mobile:
@@ -110,22 +121,6 @@ fixing the audio on mobile:
 * A mobile browser will not speak until the page has been touched, and
   refuses silently. The engine needs a `unlock()` it can spend inside a real
   tap — `main.dart` calls it on the first pointer down, above every screen.
-
-Clips can also be synthesised with an x.ai voice model, through the Agent IAP proxy:
-
-```bash
-dart run tool/generate_audio.dart --dry-run   # what would be generated
-dart run tool/generate_audio.dart             # generate only what is missing
-dart run tool/generate_audio.dart --force     # regenerate everything
-```
-
-Generated clips are committed, and the tool skips anything already on disk — 88 files is not something to rebuild on every run. The voice is British (`en-GB`), and each phoneme clip carries an instruction not to add a vowel to the end of the sound, which is the one mistake that would make the app teach the wrong thing.
-
-**79 of the 88 clips are recorded and committed** — all 78 words and the song, generated with x.ai's `eve` voice at `en-GB`.
-
-The nine pure-sound clips are **not** shipped, and the generator skips them unless you pass `--include-phonemes`. The voice reads a bare consonant as its letter name: asking it for `t, t, t` returned a clip byte-identical to one that says `tee, tee, tee`. Teaching "tee" as the sound /t/ is the one mistake this app cannot make, so those nine need a human voice. Until they exist the adult area lists them as missing and the device voice fills in.
-
-> Accent is not settled by the request — x.ai exposes no voices list and its docs do not name accents — so "British" is a judgement made by listening to the output.
 
 ## Project structure
 
@@ -142,11 +137,18 @@ lib/
 
 assets/
 ├── data/sound_bank.json      # The word bank
-├── audio/{phonemes,words,song}/
+├── chef_script.json          # The chef's fixed lines, shared with the audio tool
+├── audio_manifest.json       # Which clips are in the bundle, read before a line is played
+├── audio/{phonemes,words,emphasis,phrases,praise,actions,song}/
 ├── images/                   # Drop-in replacements for the emoji placeholders
 └── google_fonts/             # Poppins, bundled so nothing is fetched at runtime
 
-tool/audio_checklist.dart     # What still needs recording
+tool/generate_audio.py        # Records every clip, and rejects the bad takes
+tool/audio_specs.py           # Every clip the app needs, and its pronunciation
+tool/audio_pipeline.py        # Measuring, trimming, levelling, encoding
+tool/audio_checklist.dart     # The same list, for a person with a microphone
+
+docs/AUDIO.md                 # Why the audio is built the way it is
 ```
 
 ## The word bank
@@ -161,12 +163,15 @@ Words carry the fields the brief asked for:
 | `phoneme` | The **sound** it starts with, not the letter — `cat` and `kite` would both be `k` |
 | `image` | `emoji:🍌`, `asset:items/banana.svg` or `custom:<id>` |
 | `audio` | Clip path relative to `assets/audio/` |
+| `pronunciation` | Received Pronunciation in IPA, between slashes — what makes the recording British |
 | `hasCluster` | True for `spoon`, `star`, `train` — fine to listen to, not expected to be produced |
 | `difficulty` | 1 (shortest and most familiar) to 3 |
 | `notes` | Anything an adult should read first: picture caveats, accent warnings |
 | `initialGrapheme` | Optional. The letters that spell the initial sound, for digraphs like `sh` |
 
-Sounds carry `articulation` (`continuant` or `stop`), which is what decides whether the chef stretches or bounces, `pureSound` (never with an added "uh"), `mouthShape`, `mouthTip` and `action`.
+Sounds carry `articulation` (`continuant` or `stop`), which is what decides whether the chef stretches or bounces, `pureSound` (never with an added "uh"), `pronunciation`, `mouthShape`, `mouthTip` and `action`.
+
+A word's transcription always starts with the sound it is filed under, which is what lets the chef stretch it: `sun` is `/sʌn/`, so `sssun` is `/sːːʌn/`. A test enforces it.
 
 ## Phonics content rules
 

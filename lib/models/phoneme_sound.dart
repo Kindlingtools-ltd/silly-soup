@@ -12,6 +12,7 @@ class PhonemeSound {
     required this.grapheme,
     required this.articulation,
     required this.pureSound,
+    this.pronunciation = '',
     this.audio,
     this.mouthShape = MouthShape.openSmall,
     this.mouthTip = '',
@@ -31,6 +32,7 @@ class PhonemeSound {
       grapheme: (json['grapheme'] as String? ?? id).trim(),
       articulation: Articulation.fromId(json['articulation'] as String?),
       pureSound: (json['pureSound'] as String? ?? id).trim(),
+      pronunciation: (json['pronunciation'] as String? ?? '').trim(),
       audio: (json['audio'] as String?)?.trim(),
       mouthShape: MouthShape.fromId(json['mouthShape'] as String?),
       mouthTip: json['mouthTip'] as String? ?? '',
@@ -58,6 +60,16 @@ class PhonemeSound {
   /// How the pure sound is written out for the chef: `sss`, `b`.
   /// Never contains an added "uh".
   final String pureSound;
+
+  /// The sound in IPA, between slashes: `/s/`, `/æ/`.
+  ///
+  /// This is what makes the recordings British. The voice API takes a
+  /// language code but not a regional one — `en`, never `en-GB` — so the
+  /// accent cannot be asked for, only spelled out. tool/generate_audio.py
+  /// passes this to the API's pronunciation map, and a sound with no
+  /// transcription falls back to however the model reads the letters.
+  /// Empty for adult-recorded custom sounds, which need no synthesis.
+  final String pronunciation;
 
   /// Path of the recorded pure sound, relative to `assets/audio/`.
   final String? audio;
@@ -102,6 +114,7 @@ class PhonemeSound {
       'grapheme': grapheme,
       'articulation': articulation.id,
       'pureSound': pureSound,
+      if (pronunciation.isNotEmpty) 'pronunciation': pronunciation,
       'audio': audio,
       'mouthShape': mouthShape.id,
       'mouthTip': mouthTip,
@@ -120,6 +133,7 @@ class PhonemeSound {
     String? grapheme,
     Articulation? articulation,
     String? pureSound,
+    String? pronunciation,
     String? audio,
     MouthShape? mouthShape,
     String? mouthTip,
@@ -136,6 +150,7 @@ class PhonemeSound {
       grapheme: grapheme ?? this.grapheme,
       articulation: articulation ?? this.articulation,
       pureSound: pureSound ?? this.pureSound,
+      pronunciation: pronunciation ?? this.pronunciation,
       audio: audio ?? this.audio,
       mouthShape: mouthShape ?? this.mouthShape,
       mouthTip: mouthTip ?? this.mouthTip,

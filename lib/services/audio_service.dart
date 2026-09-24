@@ -2,9 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/models.dart';
 import 'audio_sink.dart';
-import 'recital_service.dart';
+import 'chef_voice.dart';
 
 /// Everything the child hears.
 ///
@@ -12,6 +11,9 @@ import 'recital_service.dart';
 /// clip that has not been recorded yet, and every fallback is logged so the
 /// adult area and `dart run tool/audio_checklist.dart` can both show exactly
 /// what is still missing.
+///
+/// What to say is decided by [ChefVoice], which hands over an [Utterance] —
+/// the clips and the same line in words. This class only plays it.
 class AudioService {
   AudioService({AudioSink? sink}) : _sink = sink ?? PlatformAudioSink();
 
@@ -91,51 +93,76 @@ class AudioService {
   /// Clip paths the app asked for and did not find, in the order first seen.
   List<String> get missingClips => List.unmodifiable(_missingClips);
 
-  /// The chef saying a sound on its own: "sss", "b-b-b".
-  Future<void> playSound(PhonemeSound sound) =>
-      _playClipOrSpeak(sound.audioAssetPath, RecitalService.pureSound(sound));
-
-  /// A single word, said plainly.
-  Future<void> playWord(SoupWord word) =>
-      _playClipOrSpeak(word.audioAssetPath, word.word);
-
-  /// A word with its first sound emphasised, for the chef's commentary.
+  /// Say an [Utterance]: its recordings if they are all there, its words if
+  /// they are not.
   ///
-  /// There is no clip for the emphasised form — the emphasis is the chef's
-  /// job — so this always goes through the voice unless a setting has
-  /// recorded one for this exact word.
-  Future<void> playEmphasisedWord(SoupWord word, PhonemeSound sound) async {
-    // On a device whose voice does not work, the emphasis cannot be spoken at
-    // all. The recorded word is worth far more than silence, even without the
-    // stretched or bounced first sound.
-    final clip = word.audioAssetPath;
-    if (voiceIsSilent && clip != null) {
+  /// The whole line is one entry in the queue, so a child's tap cuts it off
+  /// wherever it has got to rather than letting the rest of the sentence
+  /// arrive after their choice.
+  Future<void> play(Utterance utterance) {
+    if (utterance.isEmpty) return Future<void>.value();
+    final epoch = _epoch;
+    return _enqueue(() async {
+      if (utterance.clips.isNotEmpty) {
+        final played = await _playClips(utterance, epoch);
+        if (played) return;
+      }
+      if (epoch != _epoch) return;
+      await _bounded(
+        () => _sink.speak(utterance.text, volume: volume),
+        utterance.text,
+      );
+    });
+  }
+
+  /// Play a line's clips back to back. False when one of them turns out not
+  /// to be there, which is the caller's cue to speak the line instead.
+  Future<bool> _playClips(Utterance utterance, int epoch) async {
+    for (final clip in utterance.clips) {
+      if (epoch != _epoch) return true;
       var played = false;
-      await _enqueue(() async {
+      // Deliberately not [_bounded]: that shortens its wait once the device
+      // has proved it has no voice, and a clip is a file — it plays whether
+      // the device can speak or not. Borrowing that budget cut recordings
+      // off a quarter of a second in.
+      await _playOneClip(clip, () async {
         played = await _sink.playAsset(clip, volume: volume);
       });
-      if (played) return;
+      if (!played) {
+        if (_missingClips.add(clip)) {
+          debugPrint('Silly Soup: no recording for $clip, speaking instead');
+        }
+        return false;
+      }
     }
-    await speak(RecitalService.emphasise(word, sound));
+    return true;
   }
 
-  /// The stirring song: the adult's own recording if they made one, then the
-  /// bundled recording, then the words spoken.
-  Future<void> playSong({String? customRecordingPath}) async {
-    if (customRecordingPath != null && customRecordingPath.isNotEmpty) {
-      var played = false;
-      await _enqueue(() async {
-        await _bounded(() async {
-          played = await _sink.playAsset(customRecordingPath, volume: volume);
-        }, SoupSong.spokenLyrics);
-      });
-      if (played) return;
+  /// The longest a single recording is allowed to take. Every clip this app
+  /// ships is under nine seconds; the song is the longest at eight.
+  static const Duration _clipBudget = Duration(seconds: 20);
+
+  Future<void> _playOneClip(String clip, Future<void> Function() action) async {
+    try {
+      await action().timeout(_clipBudget);
+    } on TimeoutException {
+      debugPrint('Silly Soup: $clip never reported finishing');
+      await _sink.stop();
     }
-    await _playClipOrSpeak(SoupSong.audioAssetPath, SoupSong.spokenLyrics);
   }
 
-  /// Say something in the chef's voice. Commentary and praise are generated
-  /// from the child's own choices, so they are always spoken.
+  /// The stirring song, with the adult's own recording in front of the
+  /// bundled one if they made one in the adult area.
+  Future<void> playSong(Utterance song, {String? customRecordingPath}) {
+    if (customRecordingPath == null || customRecordingPath.isEmpty) {
+      return play(song);
+    }
+    return play(Utterance([customRecordingPath, ...song.clips], song.text));
+  }
+
+  /// Say something in the chef's own words rather than from a recording.
+  /// Nothing in the game needs this now that every line is recorded; it is
+  /// the fallback path, and the adult area uses it to try the device voice.
   Future<void> speak(String text) =>
       _enqueue(() => _bounded(() => _sink.speak(text, volume: volume), text));
 
@@ -179,25 +206,4 @@ class AudioService {
   Future<void> stop() => interrupt();
 
   Future<void> dispose() => _sink.dispose();
-
-  Future<void> _playClipOrSpeak(String? assetPath, String fallbackText) {
-    return _enqueue(() async {
-      if (assetPath != null && assetPath.isNotEmpty) {
-        var played = false;
-        await _bounded(() async {
-          played = await _sink.playAsset(assetPath, volume: volume);
-        }, fallbackText);
-        if (played) return;
-        if (_missingClips.add(assetPath)) {
-          debugPrint(
-            'Silly Soup: no recording for $assetPath, speaking instead',
-          );
-        }
-      }
-      await _bounded(
-        () => _sink.speak(fallbackText, volume: volume),
-        fallbackText,
-      );
-    });
-  }
 }

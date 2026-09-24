@@ -1,0 +1,953 @@
+{
+  "schemaVersion": 1,
+  "voice": "eve",
+  "language": "en",
+  "speed": 0.9,
+  "clips": {
+    "actions/a.mp3": {
+      "kind": "action",
+      "bytes": 20544,
+      "ms": 2568
+    },
+    "actions/b.mp3": {
+      "kind": "action",
+      "bytes": 19968,
+      "ms": 2496
+    },
+    "actions/d.mp3": {
+      "kind": "action",
+      "bytes": 14592,
+      "ms": 1824
+    },
+    "actions/i.mp3": {
+      "kind": "action",
+      "bytes": 21312,
+      "ms": 2664
+    },
+    "actions/m.mp3": {
+      "kind": "action",
+      "bytes": 20352,
+      "ms": 2544
+    },
+    "actions/n.mp3": {
+      "kind": "action",
+      "bytes": 14400,
+      "ms": 1800
+    },
+    "actions/p.mp3": {
+      "kind": "action",
+      "bytes": 18240,
+      "ms": 2280
+    },
+    "actions/s.mp3": {
+      "kind": "action",
+      "bytes": 18048,
+      "ms": 2256
+    },
+    "actions/t.mp3": {
+      "kind": "action",
+      "bytes": 16512,
+      "ms": 2064
+    },
+    "emphasis/acrobat.mp3": {
+      "kind": "emphasis",
+      "bytes": 10176,
+      "ms": 1272
+    },
+    "emphasis/alligator.mp3": {
+      "kind": "emphasis",
+      "bytes": 13248,
+      "ms": 1656
+    },
+    "emphasis/ambulance.mp3": {
+      "kind": "emphasis",
+      "bytes": 11712,
+      "ms": 1464
+    },
+    "emphasis/anchor.mp3": {
+      "kind": "emphasis",
+      "bytes": 10752,
+      "ms": 1344
+    },
+    "emphasis/ant.mp3": {
+      "kind": "emphasis",
+      "bytes": 8832,
+      "ms": 1104
+    },
+    "emphasis/apple.mp3": {
+      "kind": "emphasis",
+      "bytes": 8640,
+      "ms": 1080
+    },
+    "emphasis/arrow.mp3": {
+      "kind": "emphasis",
+      "bytes": 12096,
+      "ms": 1512
+    },
+    "emphasis/astronaut.mp3": {
+      "kind": "emphasis",
+      "bytes": 12288,
+      "ms": 1536
+    },
+    "emphasis/avocado.mp3": {
+      "kind": "emphasis",
+      "bytes": 12672,
+      "ms": 1584
+    },
+    "emphasis/axe.mp3": {
+      "kind": "emphasis",
+      "bytes": 6720,
+      "ms": 840
+    },
+    "emphasis/ball.mp3": {
+      "kind": "emphasis",
+      "bytes": 15552,
+      "ms": 1944
+    },
+    "emphasis/balloon.mp3": {
+      "kind": "emphasis",
+      "bytes": 15360,
+      "ms": 1920
+    },
+    "emphasis/banana.mp3": {
+      "kind": "emphasis",
+      "bytes": 15360,
+      "ms": 1920
+    },
+    "emphasis/bear.mp3": {
+      "kind": "emphasis",
+      "bytes": 13824,
+      "ms": 1728
+    },
+    "emphasis/bed.mp3": {
+      "kind": "emphasis",
+      "bytes": 13056,
+      "ms": 1632
+    },
+    "emphasis/bee.mp3": {
+      "kind": "emphasis",
+      "bytes": 14016,
+      "ms": 1752
+    },
+    "emphasis/boat.mp3": {
+      "kind": "emphasis",
+      "bytes": 11904,
+      "ms": 1488
+    },
+    "emphasis/book.mp3": {
+      "kind": "emphasis",
+      "bytes": 13248,
+      "ms": 1656
+    },
+    "emphasis/bug.mp3": {
+      "kind": "emphasis",
+      "bytes": 15360,
+      "ms": 1920
+    },
+    "emphasis/bus.mp3": {
+      "kind": "emphasis",
+      "bytes": 16128,
+      "ms": 2016
+    },
+    "emphasis/dice.mp3": {
+      "kind": "emphasis",
+      "bytes": 13824,
+      "ms": 1728
+    },
+    "emphasis/dinosaur.mp3": {
+      "kind": "emphasis",
+      "bytes": 16320,
+      "ms": 2040
+    },
+    "emphasis/dog.mp3": {
+      "kind": "emphasis",
+      "bytes": 14784,
+      "ms": 1848
+    },
+    "emphasis/doll.mp3": {
+      "kind": "emphasis",
+      "bytes": 14592,
+      "ms": 1824
+    },
+    "emphasis/dolphin.mp3": {
+      "kind": "emphasis",
+      "bytes": 14592,
+      "ms": 1824
+    },
+    "emphasis/door.mp3": {
+      "kind": "emphasis",
+      "bytes": 12480,
+      "ms": 1560
+    },
+    "emphasis/drum.mp3": {
+      "kind": "emphasis",
+      "bytes": 13824,
+      "ms": 1728
+    },
+    "emphasis/duck.mp3": {
+      "kind": "emphasis",
+      "bytes": 16320,
+      "ms": 2040
+    },
+    "emphasis/igloo.mp3": {
+      "kind": "emphasis",
+      "bytes": 10560,
+      "ms": 1320
+    },
+    "emphasis/iguana.mp3": {
+      "kind": "emphasis",
+      "bytes": 14976,
+      "ms": 1872
+    },
+    "emphasis/ink.mp3": {
+      "kind": "emphasis",
+      "bytes": 10560,
+      "ms": 1320
+    },
+    "emphasis/insect.mp3": {
+      "kind": "emphasis",
+      "bytes": 13248,
+      "ms": 1656
+    },
+    "emphasis/map.mp3": {
+      "kind": "emphasis",
+      "bytes": 15360,
+      "ms": 1920
+    },
+    "emphasis/milk.mp3": {
+      "kind": "emphasis",
+      "bytes": 10176,
+      "ms": 1272
+    },
+    "emphasis/monkey.mp3": {
+      "kind": "emphasis",
+      "bytes": 10176,
+      "ms": 1272
+    },
+    "emphasis/moon.mp3": {
+      "kind": "emphasis",
+      "bytes": 10560,
+      "ms": 1320
+    },
+    "emphasis/mountain.mp3": {
+      "kind": "emphasis",
+      "bytes": 10176,
+      "ms": 1272
+    },
+    "emphasis/mouse.mp3": {
+      "kind": "emphasis",
+      "bytes": 6720,
+      "ms": 840
+    },
+    "emphasis/mug.mp3": {
+      "kind": "emphasis",
+      "bytes": 10560,
+      "ms": 1320
+    },
+    "emphasis/mushroom.mp3": {
+      "kind": "emphasis",
+      "bytes": 13824,
+      "ms": 1728
+    },
+    "emphasis/needle.mp3": {
+      "kind": "emphasis",
+      "bytes": 8640,
+      "ms": 1080
+    },
+    "emphasis/nest.mp3": {
+      "kind": "emphasis",
+      "bytes": 10752,
+      "ms": 1344
+    },
+    "emphasis/net.mp3": {
+      "kind": "emphasis",
+      "bytes": 7104,
+      "ms": 888
+    },
+    "emphasis/newspaper.mp3": {
+      "kind": "emphasis",
+      "bytes": 10560,
+      "ms": 1320
+    },
+    "emphasis/noodles.mp3": {
+      "kind": "emphasis",
+      "bytes": 9984,
+      "ms": 1248
+    },
+    "emphasis/nose.mp3": {
+      "kind": "emphasis",
+      "bytes": 8256,
+      "ms": 1032
+    },
+    "emphasis/nurse.mp3": {
+      "kind": "emphasis",
+      "bytes": 7104,
+      "ms": 888
+    },
+    "emphasis/nut.mp3": {
+      "kind": "emphasis",
+      "bytes": 8640,
+      "ms": 1080
+    },
+    "emphasis/paint.mp3": {
+      "kind": "emphasis",
+      "bytes": 13440,
+      "ms": 1680
+    },
+    "emphasis/pan.mp3": {
+      "kind": "emphasis",
+      "bytes": 11520,
+      "ms": 1440
+    },
+    "emphasis/parrot.mp3": {
+      "kind": "emphasis",
+      "bytes": 13440,
+      "ms": 1680
+    },
+    "emphasis/pear.mp3": {
+      "kind": "emphasis",
+      "bytes": 14784,
+      "ms": 1848
+    },
+    "emphasis/pen.mp3": {
+      "kind": "emphasis",
+      "bytes": 17472,
+      "ms": 2184
+    },
+    "emphasis/penguin.mp3": {
+      "kind": "emphasis",
+      "bytes": 12864,
+      "ms": 1608
+    },
+    "emphasis/pig.mp3": {
+      "kind": "emphasis",
+      "bytes": 14592,
+      "ms": 1824
+    },
+    "emphasis/pizza.mp3": {
+      "kind": "emphasis",
+      "bytes": 15168,
+      "ms": 1896
+    },
+    "emphasis/plane.mp3": {
+      "kind": "emphasis",
+      "bytes": 14400,
+      "ms": 1800
+    },
+    "emphasis/pumpkin.mp3": {
+      "kind": "emphasis",
+      "bytes": 16128,
+      "ms": 2016
+    },
+    "emphasis/sandwich.mp3": {
+      "kind": "emphasis",
+      "bytes": 9600,
+      "ms": 1200
+    },
+    "emphasis/sausage.mp3": {
+      "kind": "emphasis",
+      "bytes": 9408,
+      "ms": 1176
+    },
+    "emphasis/seal.mp3": {
+      "kind": "emphasis",
+      "bytes": 15360,
+      "ms": 1920
+    },
+    "emphasis/snake.mp3": {
+      "kind": "emphasis",
+      "bytes": 19392,
+      "ms": 2424
+    },
+    "emphasis/sock.mp3": {
+      "kind": "emphasis",
+      "bytes": 7296,
+      "ms": 912
+    },
+    "emphasis/sofa.mp3": {
+      "kind": "emphasis",
+      "bytes": 10176,
+      "ms": 1272
+    },
+    "emphasis/soup.mp3": {
+      "kind": "emphasis",
+      "bytes": 15936,
+      "ms": 1992
+    },
+    "emphasis/spoon.mp3": {
+      "kind": "emphasis",
+      "bytes": 12288,
+      "ms": 1536
+    },
+    "emphasis/star.mp3": {
+      "kind": "emphasis",
+      "bytes": 8256,
+      "ms": 1032
+    },
+    "emphasis/sun.mp3": {
+      "kind": "emphasis",
+      "bytes": 8256,
+      "ms": 1032
+    },
+    "emphasis/tap.mp3": {
+      "kind": "emphasis",
+      "bytes": 13440,
+      "ms": 1680
+    },
+    "emphasis/taxi.mp3": {
+      "kind": "emphasis",
+      "bytes": 14400,
+      "ms": 1800
+    },
+    "emphasis/teddy.mp3": {
+      "kind": "emphasis",
+      "bytes": 12672,
+      "ms": 1584
+    },
+    "emphasis/tent.mp3": {
+      "kind": "emphasis",
+      "bytes": 15168,
+      "ms": 1896
+    },
+    "emphasis/tiger.mp3": {
+      "kind": "emphasis",
+      "bytes": 13440,
+      "ms": 1680
+    },
+    "emphasis/tomato.mp3": {
+      "kind": "emphasis",
+      "bytes": 14592,
+      "ms": 1824
+    },
+    "emphasis/torch.mp3": {
+      "kind": "emphasis",
+      "bytes": 14784,
+      "ms": 1848
+    },
+    "emphasis/train.mp3": {
+      "kind": "emphasis",
+      "bytes": 14016,
+      "ms": 1752
+    },
+    "emphasis/tree.mp3": {
+      "kind": "emphasis",
+      "bytes": 16320,
+      "ms": 2040
+    },
+    "emphasis/turtle.mp3": {
+      "kind": "emphasis",
+      "bytes": 14400,
+      "ms": 1800
+    },
+    "phonemes/a.mp3": {
+      "kind": "phoneme",
+      "bytes": 6528,
+      "ms": 816
+    },
+    "phonemes/b.mp3": {
+      "kind": "phoneme",
+      "bytes": 13056,
+      "ms": 1632
+    },
+    "phonemes/d.mp3": {
+      "kind": "phoneme",
+      "bytes": 13056,
+      "ms": 1632
+    },
+    "phonemes/i.mp3": {
+      "kind": "phoneme",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "phonemes/m.mp3": {
+      "kind": "phoneme",
+      "bytes": 9024,
+      "ms": 1128
+    },
+    "phonemes/n.mp3": {
+      "kind": "phoneme",
+      "bytes": 8832,
+      "ms": 1104
+    },
+    "phonemes/p.mp3": {
+      "kind": "phoneme",
+      "bytes": 11712,
+      "ms": 1464
+    },
+    "phonemes/s.mp3": {
+      "kind": "phoneme",
+      "bytes": 9216,
+      "ms": 1152
+    },
+    "phonemes/t.mp3": {
+      "kind": "phoneme",
+      "bytes": 12864,
+      "ms": 1608
+    },
+    "phrases/and.mp3": {
+      "kind": "phrase",
+      "bytes": 4608,
+      "ms": 576
+    },
+    "phrases/emptyPan.mp3": {
+      "kind": "phrase",
+      "bytes": 29568,
+      "ms": 3696
+    },
+    "phrases/inGoes.mp3": {
+      "kind": "phrase",
+      "bytes": 7680,
+      "ms": 960
+    },
+    "phrases/inIt.mp3": {
+      "kind": "phrase",
+      "bytes": 4224,
+      "ms": 528
+    },
+    "phrases/mySoundToday.mp3": {
+      "kind": "phrase",
+      "bytes": 13248,
+      "ms": 1656
+    },
+    "phrases/nowYouMake.mp3": {
+      "kind": "phrase",
+      "bytes": 13632,
+      "ms": 1704
+    },
+    "phrases/watchMeMake.mp3": {
+      "kind": "phrase",
+      "bytes": 16704,
+      "ms": 2088
+    },
+    "phrases/yourSoupHas.mp3": {
+      "kind": "phrase",
+      "bytes": 14208,
+      "ms": 1776
+    },
+    "praise/0.mp3": {
+      "kind": "praise",
+      "bytes": 17280,
+      "ms": 2160
+    },
+    "praise/1.mp3": {
+      "kind": "praise",
+      "bytes": 18240,
+      "ms": 2280
+    },
+    "praise/2.mp3": {
+      "kind": "praise",
+      "bytes": 22080,
+      "ms": 2760
+    },
+    "praise/3.mp3": {
+      "kind": "praise",
+      "bytes": 19200,
+      "ms": 2400
+    },
+    "praise/4.mp3": {
+      "kind": "praise",
+      "bytes": 17472,
+      "ms": 2184
+    },
+    "praise/5.mp3": {
+      "kind": "praise",
+      "bytes": 19392,
+      "ms": 2424
+    },
+    "song/silly_soup_song.mp3": {
+      "kind": "song",
+      "bytes": 66432,
+      "ms": 8304
+    },
+    "words/acrobat.mp3": {
+      "kind": "word",
+      "bytes": 6336,
+      "ms": 792
+    },
+    "words/alligator.mp3": {
+      "kind": "word",
+      "bytes": 7680,
+      "ms": 960
+    },
+    "words/ambulance.mp3": {
+      "kind": "word",
+      "bytes": 8640,
+      "ms": 1080
+    },
+    "words/anchor.mp3": {
+      "kind": "word",
+      "bytes": 5760,
+      "ms": 720
+    },
+    "words/ant.mp3": {
+      "kind": "word",
+      "bytes": 4416,
+      "ms": 552
+    },
+    "words/apple.mp3": {
+      "kind": "word",
+      "bytes": 5184,
+      "ms": 648
+    },
+    "words/arrow.mp3": {
+      "kind": "word",
+      "bytes": 5760,
+      "ms": 720
+    },
+    "words/astronaut.mp3": {
+      "kind": "word",
+      "bytes": 6912,
+      "ms": 864
+    },
+    "words/avocado.mp3": {
+      "kind": "word",
+      "bytes": 8832,
+      "ms": 1104
+    },
+    "words/axe.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/ball.mp3": {
+      "kind": "word",
+      "bytes": 4992,
+      "ms": 624
+    },
+    "words/balloon.mp3": {
+      "kind": "word",
+      "bytes": 6720,
+      "ms": 840
+    },
+    "words/banana.mp3": {
+      "kind": "word",
+      "bytes": 7296,
+      "ms": 912
+    },
+    "words/bear.mp3": {
+      "kind": "word",
+      "bytes": 5568,
+      "ms": 696
+    },
+    "words/bed.mp3": {
+      "kind": "word",
+      "bytes": 3648,
+      "ms": 456
+    },
+    "words/bee.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/boat.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/book.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/bug.mp3": {
+      "kind": "word",
+      "bytes": 5184,
+      "ms": 648
+    },
+    "words/bus.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/dice.mp3": {
+      "kind": "word",
+      "bytes": 3840,
+      "ms": 480
+    },
+    "words/dinosaur.mp3": {
+      "kind": "word",
+      "bytes": 7872,
+      "ms": 984
+    },
+    "words/dog.mp3": {
+      "kind": "word",
+      "bytes": 4416,
+      "ms": 552
+    },
+    "words/doll.mp3": {
+      "kind": "word",
+      "bytes": 4608,
+      "ms": 576
+    },
+    "words/dolphin.mp3": {
+      "kind": "word",
+      "bytes": 6336,
+      "ms": 792
+    },
+    "words/door.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/drum.mp3": {
+      "kind": "word",
+      "bytes": 4992,
+      "ms": 624
+    },
+    "words/duck.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/igloo.mp3": {
+      "kind": "word",
+      "bytes": 6336,
+      "ms": 792
+    },
+    "words/iguana.mp3": {
+      "kind": "word",
+      "bytes": 7872,
+      "ms": 984
+    },
+    "words/ink.mp3": {
+      "kind": "word",
+      "bytes": 3456,
+      "ms": 432
+    },
+    "words/insect.mp3": {
+      "kind": "word",
+      "bytes": 5568,
+      "ms": 696
+    },
+    "words/map.mp3": {
+      "kind": "word",
+      "bytes": 4224,
+      "ms": 528
+    },
+    "words/milk.mp3": {
+      "kind": "word",
+      "bytes": 4992,
+      "ms": 624
+    },
+    "words/monkey.mp3": {
+      "kind": "word",
+      "bytes": 6720,
+      "ms": 840
+    },
+    "words/moon.mp3": {
+      "kind": "word",
+      "bytes": 6144,
+      "ms": 768
+    },
+    "words/mountain.mp3": {
+      "kind": "word",
+      "bytes": 7872,
+      "ms": 984
+    },
+    "words/mouse.mp3": {
+      "kind": "word",
+      "bytes": 5760,
+      "ms": 720
+    },
+    "words/mug.mp3": {
+      "kind": "word",
+      "bytes": 4608,
+      "ms": 576
+    },
+    "words/mushroom.mp3": {
+      "kind": "word",
+      "bytes": 8448,
+      "ms": 1056
+    },
+    "words/needle.mp3": {
+      "kind": "word",
+      "bytes": 6144,
+      "ms": 768
+    },
+    "words/nest.mp3": {
+      "kind": "word",
+      "bytes": 5184,
+      "ms": 648
+    },
+    "words/net.mp3": {
+      "kind": "word",
+      "bytes": 10176,
+      "ms": 1272
+    },
+    "words/newspaper.mp3": {
+      "kind": "word",
+      "bytes": 9024,
+      "ms": 1128
+    },
+    "words/noodles.mp3": {
+      "kind": "word",
+      "bytes": 6528,
+      "ms": 816
+    },
+    "words/nose.mp3": {
+      "kind": "word",
+      "bytes": 6720,
+      "ms": 840
+    },
+    "words/nurse.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/nut.mp3": {
+      "kind": "word",
+      "bytes": 3840,
+      "ms": 480
+    },
+    "words/paint.mp3": {
+      "kind": "word",
+      "bytes": 4992,
+      "ms": 624
+    },
+    "words/pan.mp3": {
+      "kind": "word",
+      "bytes": 5376,
+      "ms": 672
+    },
+    "words/parrot.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/pear.mp3": {
+      "kind": "word",
+      "bytes": 5184,
+      "ms": 648
+    },
+    "words/pen.mp3": {
+      "kind": "word",
+      "bytes": 4992,
+      "ms": 624
+    },
+    "words/penguin.mp3": {
+      "kind": "word",
+      "bytes": 7680,
+      "ms": 960
+    },
+    "words/pig.mp3": {
+      "kind": "word",
+      "bytes": 3840,
+      "ms": 480
+    },
+    "words/pizza.mp3": {
+      "kind": "word",
+      "bytes": 6528,
+      "ms": 816
+    },
+    "words/plane.mp3": {
+      "kind": "word",
+      "bytes": 5376,
+      "ms": 672
+    },
+    "words/pumpkin.mp3": {
+      "kind": "word",
+      "bytes": 7296,
+      "ms": 912
+    },
+    "words/sandwich.mp3": {
+      "kind": "word",
+      "bytes": 6720,
+      "ms": 840
+    },
+    "words/sausage.mp3": {
+      "kind": "word",
+      "bytes": 5376,
+      "ms": 672
+    },
+    "words/seal.mp3": {
+      "kind": "word",
+      "bytes": 5184,
+      "ms": 648
+    },
+    "words/snake.mp3": {
+      "kind": "word",
+      "bytes": 6528,
+      "ms": 816
+    },
+    "words/sock.mp3": {
+      "kind": "word",
+      "bytes": 4800,
+      "ms": 600
+    },
+    "words/sofa.mp3": {
+      "kind": "word",
+      "bytes": 6336,
+      "ms": 792
+    },
+    "words/soup.mp3": {
+      "kind": "word",
+      "bytes": 4416,
+      "ms": 552
+    },
+    "words/spoon.mp3": {
+      "kind": "word",
+      "bytes": 7104,
+      "ms": 888
+    },
+    "words/star.mp3": {
+      "kind": "word",
+      "bytes": 5952,
+      "ms": 744
+    },
+    "words/sun.mp3": {
+      "kind": "word",
+      "bytes": 5760,
+      "ms": 720
+    },
+    "words/tap.mp3": {
+      "kind": "word",
+      "bytes": 3456,
+      "ms": 432
+    },
+    "words/taxi.mp3": {
+      "kind": "word",
+      "bytes": 6720,
+      "ms": 840
+    },
+    "words/teddy.mp3": {
+      "kind": "word",
+      "bytes": 5376,
+      "ms": 672
+    },
+    "words/tent.mp3": {
+      "kind": "word",
+      "bytes": 4224,
+      "ms": 528
+    },
+    "words/tiger.mp3": {
+      "kind": "word",
+      "bytes": 5760,
+      "ms": 720
+    },
+    "words/tomato.mp3": {
+      "kind": "word",
+      "bytes": 8448,
+      "ms": 1056
+    },
+    "words/torch.mp3": {
+      "kind": "word",
+      "bytes": 5760,
+      "ms": 720
+    },
+    "words/train.mp3": {
+      "kind": "word",
+      "bytes": 5760,
+      "ms": 720
+    },
+    "words/tree.mp3": {
+      "kind": "word",
+      "bytes": 5376,
+      "ms": 672
+    },
+    "words/turtle.mp3": {
+      "kind": "word",
+      "bytes": 5952,
+      "ms": 744
+    }
+  }
+}

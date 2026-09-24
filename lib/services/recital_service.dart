@@ -65,21 +65,6 @@ class RecitalService {
     return 'Your silly soup has ${parts.join(', ')} and $last in it!';
   }
 
-  /// Praise. Never a judgement — in the core game there is nothing to get
-  /// wrong, so these only ever celebrate the child's choice.
-  static const List<String> praiseLines = [
-    'Ooh, what a silly soup!',
-    'What a wonderful wobbly recipe!',
-    'That is the silliest soup I have ever seen!',
-    'Mmm, what a clever cook you are!',
-    'Look at all those lovely sounds!',
-    'What a splendid, sloppy soup!',
-  ];
-
-  /// A praise line, chosen by [seed] so a test can pin one down.
-  static String praise(int seed) =>
-      praiseLines[seed.abs() % praiseLines.length];
-
   /// The chef's commentary as a single item goes in.
   static String commentateOnItem(SoupWord word, PhonemeSound sound) =>
       'In goes ${article(word, sound)} ${emphasise(word, sound)}!';

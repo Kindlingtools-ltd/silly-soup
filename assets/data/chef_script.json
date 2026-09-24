@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "_comment": "Every fixed line the chef says. The app shows these on screen and the audio tool records them, so a clip can never disagree with the caption above it. tool/generate_audio.py reads this file; so does ChefScript in the app.",
+  "phrases": {
+    "mySoundToday": "My sound today is",
+    "watchMeMake": "Watch me make my silly soup!",
+    "nowYouMake": "Now you make a silly soup!",
+    "inGoes": "In goes",
+    "and": "and",
+    "yourSoupHas": "Your silly soup has",
+    "inIt": "in it!",
+    "emptyPan": "An empty pan! That is the silliest soup of all."
+  },
+  "praise": [
+    "Ooh, what a silly soup!",
+    "What a wonderful wobbly recipe!",
+    "That is the silliest soup I have ever seen!",
+    "Mmm, what a clever cook you are!",
+    "Look at all those lovely sounds!",
+    "What a splendid, sloppy soup!"
+  ]
+}
