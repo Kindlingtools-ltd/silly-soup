@@ -137,6 +137,71 @@ second of silence on the end, which is dead air after every ingredient),
 loudness-matched, and written as 48 kbit/s mono — transparent for one voice
 and a third the size of what the API returns. All 267 come to 2.3 MB.
 
+## The buzzing, and why it was there
+
+The first build of this sounded like it had static in it. It did, and the
+cause was one number.
+
+A held sound is made by repeating part of the original waveform. The repeats
+were crossfaded over 8 ms. A pitch period in this voice is 4.3 to 5.1 ms, so
+that crossfade spanned **1.56 to 1.86 periods** — never a whole one. Overlap a
+periodic waveform with a copy of itself shifted by part of a period and the
+two partly cancel, so every join dug a hole in the sound:
+
+| sound | crossfade, in pitch periods | dip at each join | repeating every |
+| --- | --- | --- | --- |
+| /a/ | 1.78 | −10.9 dB | 55 ms |
+| /i/ | 1.86 | −22.7 dB | 66 ms |
+| /n/ | 1.75 | −9.4 dB | 42 ms |
+| /m/ | 1.56 | −13.3 dB | 43 ms |
+
+A dip every 42 to 66 ms is amplitude modulation at 15 to 24 Hz. The ear does
+not hear modulation that fast as a wobble — between roughly 15 and 75 Hz it
+fuses into a single harsh, buzzing sound. That is the static.
+
+The repeats are now butt-joined on exact period boundaries and not crossfaded
+at all: aligned that way the waveform simply continues, and there is no join
+to hear. Measured as modulation in the 10–40 Hz band, the held sounds went
+from 6.0–18.7% to 3.7–9.0%, and the build now refuses any held sound above
+10%.
+
+A hiss had the same class of problem for a different reason. Two uncorrelated
+pieces of noise do not add in amplitude, so a straight crossfade between two
+tiles of /s/ left the power 3 dB down in the middle of every join — a flutter
+at the tiling rate. Those joins are equal-power now. The tiles are also taken
+from the middle of the sound rather than anywhere in it, because an /s/ ramps
+up at the start and is already bending toward the vowel at the end.
+
+### Two things that were not the cause
+
+Worth recording, because both looked guilty:
+
+- **The 48 kbit/s encode.** A held /s/ encodes at only 5.4 dB waveform SNR,
+  which looks alarming, and 96 kbit/s takes it to 21.9. But the long-term
+  spectrum at 48 and 96 is identical to a tenth of a decibel, and the ear does
+  not track the waveform of noise — only its spectrum. The low number is the
+  encoder reproducing *a* noise with the right spectrum, which is all that is
+  required. Raising the bitrate would have doubled the download for nothing.
+- **Normalisation amplifying a noise floor.** The gains applied are 1.9× to
+  16.5×, and even the worst leaves the source's own floor at −60 dB. Inaudible.
+
+## Loudness
+
+Clips were matched by peak height, which is the wrong measure for a set
+containing both vowels and hisses: the ear is far more sensitive around
+2–6 kHz, where a /t/ release sits and a /b/ release does not. Matched by peak,
+the nine pure sounds came out **15.5 dB apart** — /t/ shouting, /b/ nearly
+inaudible.
+
+They are now matched on A-weighted level, judged only over the part of the
+clip that makes a sound, so a bounced stop is not marked quiet for the silence
+between its taps. The target is the loudness three quarters of the clips can
+reach before their peak hits the ceiling; a clip that would have to clip to
+get there simply stops short, because too quiet beats distorted.
+
+Across all 267 clips the spread is now **7.2 dB, with 263 of them within 3 dB
+of the median** — and the pure sounds, which matter most, sit within 3.3 dB.
+
 ## Checking it
 
 ```bash
@@ -153,6 +218,8 @@ checks that matter:
 
 - a pure stop must be **under 35% voiced**. This is the "buh" test, and it is
   the reason any of this exists. The shipped stops measure 0%.
+- a held sound must **flutter by less than 10%** in the 10–40 Hz band. This is
+  the static test; see above for what it caught.
 - a held sound must last between 0.35 s and 1.0 s
 - /s/ must have its spectral energy high (it has to hiss); a nasal must have
   it low

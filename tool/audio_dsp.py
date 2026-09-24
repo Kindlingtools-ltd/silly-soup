@@ -214,14 +214,21 @@ def period_of(x: np.ndarray) -> int:
 def hold(x: np.ndarray, seconds: float) -> np.ndarray:
     """Hold a voiced sound on, at its own pitch.
 
-    A nasal murmur or a vowel is periodic, so it lengthens cleanly by
-    repeating a whole number of pitch periods: cut the loop on a period
-    boundary and the join is inaudible, because the waveform on either side
-    of it is the same shape. Cut it anywhere else and it clicks once per
-    repeat.
+    A nasal murmur or a vowel is periodic, so it lengthens by repeating a
+    whole number of pitch periods: cut the loop on a period boundary and the
+    waveform either side of the join has the same shape, so there is no join
+    to hear.
 
-    These segments are short — an /m/ is about 90 ms — so there is no room
-    for the sliding-window search a general time-stretcher would use.
+    The length of the crossfade is the whole game here, and getting it wrong
+    is worse than having none. A pitch period is about 4.5 ms; an 8 ms
+    crossfade therefore overlaps 1.8 periods, which lands the two copies out
+    of phase and makes them cancel. That put a 9 to 23 dB hole in the sound
+    at every join — an amplitude dip repeating every 40 to 65 ms, which is
+    modulation at 15 to 24 Hz, right in the band the ear hears as roughness.
+    It sounded like static sitting inside the vowel.
+
+    So the repeats are butt-joined on exact period boundaries and not
+    crossfaded at all. Aligned that way the waveform simply continues.
     """
     target = int(seconds * SR)
     if len(x) < 240 or target <= len(x):
@@ -231,36 +238,63 @@ def hold(x: np.ndarray, seconds: float) -> np.ndarray:
     core = x[int(len(x) * 0.25):int(len(x) * 0.85)] if len(x) > 600 else x
     period = period_of(core)
     if period <= 0 or period * 2 > len(core):
+        # No usable pitch: fall back to a crossfade, which is at least smooth.
         body = core
-    else:
-        repeats = max(int(len(core) // period), 1)
-        body = core[:repeats * period]
+        out = x[:len(x) // 2].copy()
+        while len(out) < target:
+            out = splice(out, body, cross_ms=8)
+        return out[:target]
 
-    out = x[:len(x) // 2].copy()
-    cross = min(int(0.008 * SR), len(body) // 3)
-    while len(out) < target:
-        out = splice(out, body, cross_ms=1000 * cross / SR)
-    return out[:target]
+    repeats = max(int(len(core) // period), 1)
+    body = core[:repeats * period]
+
+    # Keep the sound's own attack, then run on with whole copies of the body.
+    # The body has to start at the phase the attack ended on, or that one
+    # junction is a step in the middle of a waveform — so rotate it until it
+    # lines up. Every join after that is exact, because the body is a whole
+    # number of periods and tiling it just continues the waveform.
+    attack = x[:int(len(x) * 0.25)]
+    if len(attack) > period:
+        tail = attack[-period:]
+        offset = int(np.argmax([
+            float(np.dot(tail, np.roll(body, -lag)[:period]))
+            for lag in range(period)
+        ]))
+        body = np.roll(body, -offset)
+    else:
+        attack = x[:0]
+    tiles = int(np.ceil((target - len(attack)) / len(body))) + 1
+    return np.concatenate([attack, np.tile(body, tiles)])[:target]
 
 
 def hold_noise(x: np.ndarray, seconds: float, seed: int = 7) -> np.ndarray:
-    """Lengthen a hiss by tiling it from random offsets.
+    """Lengthen a hiss by tiling it, from its steady middle.
 
-    A fricative is noise, and the similarity search in `hold` is the wrong
-    tool for noise: lining windows up by correlation imposes a period on
-    something that has none, and the held /s/ picks up an audible buzz. Taking
-    the windows from random places keeps it hissing.
+    A fricative is noise, and the similarity search a time-stretcher uses is
+    the wrong tool for noise: lining windows up by correlation imposes a
+    period on something that has none, and the held /s/ picks up a buzz.
+    Taking the windows from random places keeps it hissing.
+
+    Two details it goes wrong without. The tiles come from the middle of the
+    sound rather than anywhere in it, because an /s/ ramps up at the start
+    and is already bending towards the vowel at the end, and tiles taken from
+    those ends make the hiss wobble. And the joins are equal-power, because
+    two uncorrelated pieces of noise do not add in amplitude — a straight
+    crossfade leaves a 3 dB dip at every join, which flutters.
     """
     target = int(seconds * SR)
     if len(x) < 480 or target <= len(x):
         return x.copy()
+    middle = x[int(len(x) * 0.30):int(len(x) * 0.95)]
+    if len(middle) < 240:
+        middle = x
     rng = np.random.default_rng(seed)
-    win = min(len(x), int(0.06 * SR))
-    cross = int(0.015 * SR)
-    out = x[:len(x) - cross].copy()
+    win = min(len(middle), int(0.06 * SR))
+    cross_ms = 12.0
+    out = x[:int(len(x) * 0.30)] if len(x) > 800 else middle[:win]
     while len(out) < target:
-        start = int(rng.integers(0, max(len(x) - win, 1)))
-        out = splice(out, x[start:start + win], cross_ms=1000 * cross / SR)
+        start = int(rng.integers(0, max(len(middle) - win, 1)))
+        out = splice(out, middle[start:start + win], cross_ms=cross_ms, equal_power=True)
     return out[:target]
 
 
@@ -278,20 +312,82 @@ def silence(ms: float) -> np.ndarray:
     return np.zeros(int(SR * ms / 1000))
 
 
-def splice(head: np.ndarray, tail: np.ndarray, cross_ms: float = 10) -> np.ndarray:
-    """Join two pieces with a short crossfade so the seam does not click."""
+def splice(head: np.ndarray, tail: np.ndarray, cross_ms: float = 10,
+           equal_power: bool = False) -> np.ndarray:
+    """Join two pieces with a short crossfade so the seam does not click.
+
+    `equal_power` matters when the two sides are uncorrelated — two pieces of
+    hiss, say. A straight fade adds their amplitudes, and uncorrelated
+    amplitudes do not add: the sum sits 3 dB down in the middle of every
+    crossfade, so a tiled hiss flutters at the tiling rate. Fading by the
+    square root keeps the power constant instead.
+    """
     n = int(SR * cross_ms / 1000)
     if n == 0 or len(head) < n or len(tail) < n:
         return np.concatenate([head, tail])
     ramp = np.linspace(0, 1, n)
-    middle = head[-n:] * (1 - ramp) + tail[:n] * ramp
+    down, up = (np.sqrt(1 - ramp), np.sqrt(ramp)) if equal_power else (1 - ramp, ramp)
+    middle = head[-n:] * down + tail[:n] * up
     return np.concatenate([head[:-n], middle, tail[n:]])
 
 
-def normalise(x: np.ndarray, peak: float = 0.89) -> np.ndarray:
-    """Even loudness across every clip, so no line makes a child jump."""
-    loudest = float(np.max(np.abs(x))) if len(x) else 0.0
-    return x * (peak / loudest) if loudest > 1e-9 else x
+def a_weighted_level(x: np.ndarray) -> float:
+    """Roughly how loud this sounds, in dB. Not how tall its waveform is.
+
+    Peak height is the wrong measure for a set of clips that includes both
+    vowels and hisses. Matching peaks left the nine pure sounds 15 dB apart
+    to the ear — /t/ shouting and /b/ almost inaudible — because the ear is
+    far more sensitive around 2-6 kHz, which is exactly where a /t/ release
+    sits and a /b/ release does not.
+    """
+    if len(x) < 240:
+        return -120.0
+    energy, hop = _rms(x)
+    if not len(energy):
+        return -120.0
+    live = np.flatnonzero(energy > max(0.08 * energy.max(), 0.01))
+    if not len(live):
+        return -120.0
+    # Judge the clip on the part of it that makes a sound, so a bounced stop
+    # is not marked quiet for the silence between its taps.
+    sounding = np.concatenate([x[int(i * hop):int(i * hop) + 240] for i in live])
+    power = np.abs(np.fft.rfft(sounding * np.hanning(len(sounding)))) ** 2
+    freqs = np.maximum(np.fft.rfftfreq(len(sounding), 1 / SR), 1e-6)
+    ra = (12194 ** 2 * freqs ** 4) / (
+        (freqs ** 2 + 20.6 ** 2)
+        * np.sqrt((freqs ** 2 + 107.7 ** 2) * (freqs ** 2 + 737.9 ** 2))
+        * (freqs ** 2 + 12194 ** 2)
+    )
+    weighted = power * 10 ** ((20 * np.log10(ra) + 2.0) / 10)
+    # Parseval: the power spectrum sums to N times the signal's total energy,
+    # so mean power is that sum over N squared. Dividing by N once instead
+    # made the number grow with the length of the clip, which quietly turned
+    # "match the loudness" into "punish the long ones".
+    return float(10 * np.log10(max(weighted.sum() / len(sounding) ** 2, 1e-20)))
+
+
+# Chosen from the clips themselves: the loudness three quarters of them can
+# reach before their peak hits the ceiling. Aiming higher would only mean
+# more clips stopping short of the target, which is the spread we are trying
+# to remove.
+TARGET_LOUDNESS_DB = -27.5
+
+
+def normalise(x: np.ndarray, target_db: float = TARGET_LOUDNESS_DB,
+              ceiling: float = 0.89) -> np.ndarray:
+    """Bring a clip to a common loudness, without letting it clip.
+
+    `ceiling` is a limit, not a goal: a clip that would have to go over it to
+    reach the target simply stops there. That is the right way round — a clip
+    slightly under the target is quiet, a clip over full scale is distorted.
+    """
+    if not len(x):
+        return x
+    gain = 10 ** ((target_db - a_weighted_level(x)) / 20)
+    loudest = float(np.max(np.abs(x)))
+    if loudest > 1e-9:
+        gain = min(gain, ceiling / loudest)
+    return x * gain
 
 
 # ---------------------------------------------------------------- measuring
@@ -336,3 +432,38 @@ def trim_stop_onset(word: np.ndarray, boundary: int, ceiling: float = 0.25) -> i
     while boundary > floor_ and describe(word[:boundary])["voiced"] > ceiling:
         boundary -= int(0.01 * SR)
     return max(boundary, floor_)
+
+
+def roughness(x: np.ndarray) -> float:
+    """How much the clip's level flutters, as a percentage, in the 10-40 Hz band.
+
+    This is the measurement that found the bug this module was shipped with.
+    A held sound is supposed to be steady; a loop whose crossfade does not
+    line up with the pitch cancels a little at every join, and the result is
+    a level dip repeating at the loop rate. Between roughly 15 and 75 Hz the
+    ear does not hear that as separate events — it hears one harsh, buzzing
+    sound. It was described, fairly, as static.
+
+    Only meaningful for sounds that are meant to be continuous. A bounced
+    stop is three taps with gaps, so it modulates by design and scores
+    enormously; do not ask this about one.
+    """
+    window, hop = 480, 120  # 20 ms window: averages out the pitch, keeps the flutter
+    if len(x) < window * 8:
+        return 0.0
+    envelope = np.array([
+        np.sqrt(np.mean(x[i:i + window] ** 2))
+        for i in range(0, len(x) - window, hop)
+    ])
+    core = envelope[int(len(envelope) * 0.15):int(len(envelope) * 0.85)]
+    if len(core) < 24 or core.mean() <= 0:
+        return 0.0
+    envelope_sr = SR / hop
+    spectrum = np.abs(np.fft.rfft((core - core.mean()) * np.hanning(len(core))))
+    freqs = np.fft.rfftfreq(len(core), 1 / envelope_sr)
+    band = (freqs >= 10) & (freqs <= 40)
+    if not band.any():
+        return 0.0
+    # Parseval, back to an RMS in the band, against the clip's own level.
+    rms_in_band = np.sqrt(2 * np.sum(spectrum[band] ** 2)) / len(core)
+    return float(100 * rms_in_band / core.mean())

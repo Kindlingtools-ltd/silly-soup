@@ -75,6 +75,13 @@ LANGUAGE = "en-GB"
 # How long the chef holds a stretchable sound: long enough for a child to
 # hear it and join in, short enough not to become a drone.
 HOLD_SECONDS = 0.55
+
+# The most a held sound may flutter, as a percentage of its own level, in the
+# 10-40 Hz band. A steady sound should barely move. This is the check that
+# would have caught the loop joins cancelling — they modulated the sound at
+# about 20 Hz, which the ear hears as a harsh buzz rather than as a wobble,
+# and which was reported as static.
+MAX_ROUGHNESS = 10.0
 # A bounced sound: three light taps, as an adult does it.
 BOUNCE_REPEATS = 3
 BOUNCE_GAP_MS = 170
@@ -424,8 +431,15 @@ def _sounds_like(word: str, heard: str) -> bool:
 
     def skeleton(text: str) -> str:
         letters = flatten(text).translate(SAME_SOUND).replace("x", "ks").replace("ph", "f")
-        out = [c for c in letters if c not in "aeiou"]
-        return "".join(c for i, c in enumerate(out) if i == 0 or c != out[i - 1])
+        # "h" is never a sound of its own in this vocabulary — it is the tail
+        # of a digraph ("anchor", "mushroom") — and keeping it makes those
+        # words fail against a transcript that spelled the digraph differently.
+        out = [c for c in letters if c not in "aeiouh"]
+        out = [c for i, c in enumerate(out) if i == 0 or c != out[i - 1]]
+        # The voice is non-rhotic, which is the whole point of choosing it:
+        # "anchor" is said, and transcribed, as "Anka". Insisting on the
+        # final /r/ would fail the clips for being British.
+        return "".join(out[:-1] if out and out[-1] == "r" else out)
 
     bones = skeleton(word)
     return bool(bones) and bones in skeleton(heard)
@@ -503,6 +517,12 @@ def check_audio(clip: Clip, audio) -> list[str]:
                 problems.append(f"held for {facts['duration']:.2f}s")
             if facts["voiced"] < 0.5 and klass in {"vowel", "nasal"}:
                 problems.append(f"only {facts['voiced']:.0%} voiced")
+        if klass != "stop":
+            # A bounced stop is three taps with gaps, so it modulates by
+            # design; asking this of one is meaningless.
+            flutter = dsp.roughness(audio)
+            if flutter > MAX_ROUGHNESS:
+                problems.append(f"flutters at {flutter:.0f}% (a buzz, not a steady sound)")
         if klass == "fricative" and facts["centroid"] < 3500:
             problems.append(f"does not hiss (centroid {facts['centroid']:.0f} Hz)")
         if klass == "nasal" and facts["centroid"] > 1200:
@@ -595,7 +615,11 @@ def main() -> int:
 
     built, failed = 0, []
     with futures.ThreadPoolExecutor(args.jobs) as pool:
-        pending = {pool.submit(build, clip, args.voice, args.language): clip for clip in todo}
+        pending = {
+            pool.submit(build, clip, args.voice, args.language,
+                        8 if clip.kind == "phoneme" else 4): clip
+            for clip in todo
+        }
         for future in futures.as_completed(pending):
             clip = pending[future]
             try:
