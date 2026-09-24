@@ -197,12 +197,56 @@ void main() {
 
     expect(sink.stopCount, 1);
   });
+
+  group('unlocking the sound', () {
+    test('the first touch is spent on making sound possible', () async {
+      final sink = RecordingAudioSink();
+      final audio = AudioService(sink: sink);
+
+      expect(audio.isUnlocked, isFalse);
+      await audio.unlock();
+
+      expect(sink.unlockCount, 1);
+      expect(audio.isUnlocked, isTrue);
+    });
+
+    test('later touches do not ask again', () async {
+      final sink = RecordingAudioSink();
+      final audio = AudioService(sink: sink);
+
+      await audio.unlock();
+      await audio.unlock();
+      await audio.unlock();
+
+      expect(sink.unlockCount, 1);
+    });
+
+    test(
+      'a voice written off before the first touch gets another chance',
+      () async {
+        // A browser refuses to speak until the page is touched, and refuses
+        // silently. Those refusals used to convince the app the device had no
+        // voice at all, and it then played the whole game without one.
+        final sink = SilentSink();
+        final audio = AudioService(sink: sink);
+
+        await audio.speak('sss');
+        await audio.speak('mmm');
+        expect(audio.voiceIsSilent, isTrue);
+
+        await audio.unlock();
+
+        expect(audio.voiceIsSilent, isFalse);
+      },
+    );
+  });
 }
 
 /// A sink that accepts an utterance and never finishes it — a device with no
 /// voice installed, or a browser refusing to speak before the first tap.
 class SilentSink implements AudioSink {
   int stopCount = 0;
+  int unlockCount = 0;
 
   @override
   Future<bool> playAsset(String assetPath, {required double volume}) async =>
@@ -214,6 +258,9 @@ class SilentSink implements AudioSink {
 
   @override
   Future<void> stop() async => stopCount++;
+
+  @override
+  Future<void> unlock() async => unlockCount++;
 
   @override
   Future<void> dispose() async {}

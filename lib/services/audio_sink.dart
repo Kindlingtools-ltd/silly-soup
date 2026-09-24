@@ -1,7 +1,8 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+
+import 'speech_engine.dart';
 
 /// Anything that can make a noise.
 ///
@@ -17,19 +18,31 @@ abstract class AudioSink {
 
   Future<void> stop();
 
+  /// Called from inside a real tap. Mobile browsers will not play a sound
+  /// until the page has been touched, and they refuse silently, so the first
+  /// tap is spent making everything after it audible.
+  Future<void> unlock();
+
   Future<void> dispose();
 }
 
-/// The real sink: recorded clips through audioplayers, speech through
-/// flutter_tts. Both are local to the device; neither calls out to a service.
+/// The real sink: recorded clips through audioplayers, speech through the
+/// platform's voice. Both are local to the device; neither calls out to a
+/// service.
 class PlatformAudioSink implements AudioSink {
-  PlatformAudioSink({AudioPlayer? player, FlutterTts? tts})
+  PlatformAudioSink({AudioPlayer? player, SpeechEngine? speech})
     : _player = player ?? AudioPlayer(),
-      _tts = tts ?? FlutterTts();
+      _speech = speech ?? createSpeechEngine();
+
+  /// A tenth of a second of silence, used to spend a tap on satisfying a
+  /// mobile browser's "no sound before the first touch" rule.
+  static const String _silentClip =
+      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAAC'
+      'ABAAZGF0YQAAAAA=';
 
   final AudioPlayer _player;
-  final FlutterTts _tts;
-  bool _ttsReady = false;
+  final SpeechEngine _speech;
+  bool _unlocked = false;
 
   /// Clips already known to be absent, so a missing file costs one bundle
   /// lookup rather than one per tap.
@@ -77,26 +90,22 @@ class PlatformAudioSink implements AudioSink {
   }
 
   @override
-  Future<void> speak(String text, {required double volume}) async {
-    if (text.trim().isEmpty) return;
+  Future<void> speak(String text, {required double volume}) =>
+      _speech.speak(text, volume: volume);
+
+  @override
+  Future<void> unlock() async {
+    if (_unlocked) return;
+    _unlocked = true;
+    await _speech.unlock();
     try {
-      if (!_ttsReady) {
-        // Without this, speak() returns the moment speech *starts*. Every
-        // caller then moves on, and the next line's stop() cuts this one off
-        // mid-word — which is what made the chef unlistenable.
-        await _tts.awaitSpeakCompletion(true);
-        await _tts.setLanguage('en-GB');
-        // Slower than the default: these are three- to five-year-olds, and
-        // the whole point is that they can hear the sound clearly.
-        await _tts.setSpeechRate(0.4);
-        await _tts.setPitch(1.1);
-        _ttsReady = true;
-      }
-      await _tts.setVolume(volume);
-      await _tts.stop();
-      await _tts.speak(text);
+      // The clip player needs the same permission, and asking for it with a
+      // real (silent) clip is the only thing browsers accept.
+      await _player.setVolume(0);
+      await _player.play(UrlSource(_silentClip), volume: 0);
+      await _player.stop();
     } catch (error) {
-      debugPrint('Silly Soup: could not speak "$text" ($error)');
+      debugPrint('Silly Soup: could not warm the player up ($error)');
     }
   }
 
@@ -131,15 +140,16 @@ class PlatformAudioSink implements AudioSink {
   Future<void> stop() async {
     try {
       await _player.stop();
-      await _tts.stop();
     } catch (_) {
       // Stopping something that is not playing is not worth reporting.
     }
+    await _speech.stop();
   }
 
   @override
   Future<void> dispose() async {
     await stop();
+    await _speech.dispose();
     await _player.dispose();
   }
 }
@@ -154,6 +164,7 @@ class RecordingAudioSink implements AudioSink {
   final List<String> playedAssets = [];
   final List<String> spokenText = [];
   int stopCount = 0;
+  int unlockCount = 0;
 
   @override
   Future<bool> playAsset(String assetPath, {required double volume}) async {
@@ -169,6 +180,9 @@ class RecordingAudioSink implements AudioSink {
 
   @override
   Future<void> stop() async => stopCount++;
+
+  @override
+  Future<void> unlock() async => unlockCount++;
 
   @override
   Future<void> dispose() async {}

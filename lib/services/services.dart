@@ -7,5 +7,6 @@ export 'custom_content_store.dart';
 export 'recital_service.dart';
 export 'sound_pack_codec.dart';
 export 'soup_service.dart';
+export 'speech_engine.dart';
 export 'storage_service.dart';
 export 'word_bank_service.dart';

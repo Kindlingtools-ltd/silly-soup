@@ -48,9 +48,11 @@ means, `material_color_utilities` and `test_api`, are pinned to an exact version
 by the Flutter SDK itself, not by us — see the note at the top of `pubspec.yaml`.
 Every dependency this app declares is at its latest published version.
 
-## Testing it on a tablet
+## Testing it on a tablet or a phone
 
-The app is designed for a tablet lying flat on a table between an adult and a child, in landscape.
+The app is at its best on a tablet lying flat on a table between an adult and
+a child, in landscape — but it lays itself out for whatever screen it is
+given, phone in either orientation included.
 
 ```bash
 # Serve the release build on the local network
@@ -61,7 +63,7 @@ cd build/web && python3 -m http.server 8080
 
 Worth checking on the device itself:
 
-1. **Landscape** — the pot and the shelf sit side by side. In portrait the web build shows a "turn the tablet sideways" prompt.
+1. **Both orientations** — in landscape the pot and the shelf sit side by side; in portrait the pot sits above the shelf. The pantry is on screen either way, with a whole row of ingredients reachable without scrolling.
 2. **Dragging** — drag a picture from the shelf into the pot. The pot grows slightly as the item comes over it.
 3. **Tapping** — tap a picture instead. It should go in just the same. (Switch to "Tap only" in the adult area to check the simpler path.)
 4. **Tap targets** — nothing you need to hit is under 72&nbsp;px.
@@ -70,13 +72,14 @@ Worth checking on the device itself:
 7. **Reduced motion** — turn on the device's reduce-motion setting, or the toggle in the adult area, and check the soup stops bobbing.
 8. **Whiteboard mode** — everything scales up and the chef waits for you instead of moving on by itself.
 9. **Offline** — load it once, turn off wi-fi, reload. It still runs. One online visit is enough: the page tells the service worker which files this browser actually downloaded, and those get cached.
+10. **Sound on a phone** — the chef should speak from the first tap. Mobile browsers refuse to make a sound before the page has been touched, so the first touch anywhere is spent silently unlocking the voice.
 
 > Camera access needs a secure context. On a tablet that means HTTPS or `localhost`; a plain `http://<ip>` page will not be offered the camera. Test mirror mode against <https://silly-soup.kindlingtools.com> rather than a local address.
 
 ## Running the checks
 
 ```bash
-flutter test                                    # 116 tests
+flutter test                                    # 178 tests
 flutter analyze --fatal-infos --fatal-warnings  # what CI runs
 dart format --output=none --set-exit-if-changed .
 dart run tool/audio_checklist.dart              # what is left to record
@@ -84,7 +87,7 @@ dart run tool/audio_checklist.dart              # what is left to record
 
 ## Audio
 
-Audio is the most important part of this app. Clips are played from `assets/audio/phonemes` and `assets/audio/words`; anything not recorded yet falls back to the device voice (the Web Speech API on web, `en-GB`) and is logged — both in the adult area and by the checklist script:
+Audio is the most important part of this app. Clips are played from `assets/audio/phonemes` and `assets/audio/words`; anything not recorded yet falls back to the device voice (`en-GB`) and is logged — both in the adult area and by the checklist script:
 
 ```bash
 dart run tool/audio_checklist.dart               # readable checklist
@@ -93,6 +96,20 @@ dart run tool/audio_checklist.dart --csv > recording-list.csv
 ```
 
 The checklist tells the person recording exactly what to say for each clip, including which sounds to stretch and which to bounce.
+
+The voice itself is behind `SpeechEngine`, with two implementations. iOS,
+Android and desktop use `flutter_tts`; the web talks to the Web Speech API
+directly (`lib/services/speech_engine_web.dart`) for two reasons found while
+fixing the audio on mobile:
+
+* `flutter_tts` on the web reuses a single utterance and, when speech
+  *fails*, drops the future it handed the caller instead of completing it. A
+  device with no usable voice left the chef frozen mid-sentence until a
+  timeout fired, twice, after which the app gave up on the voice and played
+  the whole game in silence.
+* A mobile browser will not speak until the page has been touched, and
+  refuses silently. The engine needs a `unlock()` it can spend inside a real
+  tap — `main.dart` calls it on the first pointer down, above every screen.
 
 Clips can also be synthesised with an x.ai voice model, through the Agent IAP proxy:
 

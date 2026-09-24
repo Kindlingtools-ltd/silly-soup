@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -40,7 +42,13 @@ class _MouthScreenState extends State<MouthScreen> {
     final app = context.watch<AppProvider>();
     final scale = SoupMetrics.scale(app.settings.whiteboardMode);
     final reducedMotion = app.prefersReducedMotion(context);
-    final mouthSize = Breakpoints.isTablet(context) ? 300.0 : 220.0;
+    final screen = MediaQuery.sizeOf(context);
+    // The close-up is the point of this screen, but on a phone in landscape
+    // a fixed 220 pushed the sound card and the tip off the top and bottom.
+    final mouthSize = math
+        .min(screen.width * 0.6, screen.height * 0.45)
+        .clamp(140.0, 300.0)
+        .toDouble();
 
     return Scaffold(
       backgroundColor: SoupColours.background,
