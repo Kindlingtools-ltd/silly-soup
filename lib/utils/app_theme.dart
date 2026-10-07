@@ -34,6 +34,24 @@ class SoupColours {
   static const Color secondary = Color(0xFF7FC8A9);
   static const Color gold = Color(0xFFFFC84A);
 
+  /// Something a grown-up needs to know about, in the adult area.
+  ///
+  /// Deliberately not [primary]. Warnings used to be set in the same carrot
+  /// as every call to action, so "do this" and "something is wrong" were the
+  /// same colour — and at 2.6:1 on white the warning was the harder of the
+  /// two to read. This is 5.4:1.
+  static const Color warning = Color(0xFFA4560B);
+
+  // ============ DISABLED ============
+  /// A control that is not ready yet — the chef is still talking, or the pot
+  /// is still empty.
+  ///
+  /// Warm, because the whole app is. It used to be Material's cool grey with
+  /// the button's white label still on it: 1.2:1, so "All done!" simply was
+  /// not there until the pot was.
+  static const Color disabled = Color(0xFFEDE0D2);
+  static const Color disabledText = Color(0xFF6E6154);
+
   // ============ KITCHEN ============
   /// The soup itself.
   static const Color broth = Color(0xFFF7A93B);

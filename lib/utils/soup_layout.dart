@@ -15,6 +15,7 @@ import 'app_theme.dart';
 @immutable
 class SoupLayout {
   const SoupLayout({
+    required this.soundColumns,
     required this.scale,
     required this.chefScale,
     required this.soundCardScale,
@@ -26,7 +27,7 @@ class SoupLayout {
   /// Whiteboard sessions are shown across a room, so everything grows.
   factory SoupLayout.forSize(Size size, {bool whiteboard = false}) {
     final scale = SoupMetrics.scale(whiteboard);
-    final columns = soundColumnsFor(size.width);
+    final columns = soundColumnsFor(size.width, height: size.height);
     final cardWidth =
         (size.width -
             horizontalPaddingFor(size.width) * 2 -
@@ -34,6 +35,7 @@ class SoupLayout {
         columns;
 
     return SoupLayout(
+      soundColumns: columns,
       scale: scale,
       // The chef and the speech bubble are the tallest fixed thing above the
       // pot, so they are what has to give on a short screen.
@@ -60,11 +62,30 @@ class SoupLayout {
 
   /// Columns in the sound picker. Two on a phone, so a child sees more than
   /// one sound without scrolling.
-  static int soundColumnsFor(double width) {
-    if (width < 600) return 2;
-    if (width < 900) return 3;
-    return 4;
+  ///
+  /// On a short screen that flips round. A phone lying on its side has room
+  /// for two rows at most, so five sounds in two columns put the last one
+  /// below the fold with nothing on screen to say it was there — the same
+  /// way the pantry used to hide. Another column is worth more than a bigger
+  /// card when the alternative is a sound the child never sees.
+  static int soundColumnsFor(double width, {double? height}) {
+    final natural = width < 600
+        ? 2
+        : width < 900
+        ? 3
+        : 4;
+    if (height == null || height >= shortScreenHeight) return natural;
+
+    // As many as will fit while every card keeps its minimum tap target.
+    final fits =
+        ((width - horizontalPaddingFor(width) * 2 + soundCardSpacing) /
+                (SoupMetrics.minTapTarget * 2 + soundCardSpacing))
+            .floor();
+    return math.max(natural, math.min(fits, 4));
   }
+
+  /// Below this there is only room for two rows of sound cards.
+  static const double shortScreenHeight = 420;
 
   static double horizontalPaddingFor(double width) {
     if (width < 500) return 16;
@@ -72,6 +93,8 @@ class SoupLayout {
     return 32;
   }
 
+  /// How many sound cards fit across the picker.
+  final int soundColumns;
   final double scale;
   final double chefScale;
   final double soundCardScale;

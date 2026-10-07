@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'kindling_colours.dart';
 import 'kindling_theme_config.dart';
@@ -7,7 +6,8 @@ import 'kindling_theme_config.dart';
 /// Kindling Tools typography configuration.
 ///
 /// Provides a consistent type scale that can be customized with different
-/// font families. Uses Google Fonts for font loading.
+/// font families. The family is bundled and declared in pubspec.yaml, so
+/// nothing is fetched at runtime.
 class KindlingTypography {
   const KindlingTypography._(this.config);
 
@@ -17,16 +17,16 @@ class KindlingTypography {
   }
   final KindlingThemeConfig config;
 
-  /// Get the Google Font TextStyle for the configured font family
-  TextStyle _googleFont({
+  /// A TextStyle in the configured (bundled) family.
+  TextStyle _font({
     double fontSize = 16,
     FontWeight fontWeight = FontWeight.w400,
     Color? color,
     double? letterSpacing,
     double? height,
   }) {
-    return GoogleFonts.getFont(
-      config.fontFamily,
+    return TextStyle(
+      fontFamily: config.fontFamily,
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color ?? KindlingColours.textPrimary,
@@ -39,86 +39,78 @@ class KindlingTypography {
 
   /// Large display text (48-72pt for prominent content)
   TextStyle get displayLarge =>
-      _googleFont(fontSize: 56, fontWeight: FontWeight.w500, letterSpacing: 2);
+      _font(fontSize: 56, fontWeight: FontWeight.w500, letterSpacing: 2);
 
   /// Medium display text
-  TextStyle get displayMedium => _googleFont(
-    fontSize: 36,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 1.5,
-  );
+  TextStyle get displayMedium =>
+      _font(fontSize: 36, fontWeight: FontWeight.w500, letterSpacing: 1.5);
 
   /// Small display text
   TextStyle get displaySmall =>
-      _googleFont(fontSize: 28, fontWeight: FontWeight.w500, letterSpacing: 1);
+      _font(fontSize: 28, fontWeight: FontWeight.w500, letterSpacing: 1);
 
   // ============ HEADLINE STYLES ============
 
   /// Large headline (page titles)
   TextStyle get headlineLarge =>
-      _googleFont(fontSize: 28, fontWeight: FontWeight.w600);
+      _font(fontSize: 28, fontWeight: FontWeight.w600);
 
   /// Medium headline (section titles)
   TextStyle get headlineMedium =>
-      _googleFont(fontSize: 24, fontWeight: FontWeight.w600);
+      _font(fontSize: 24, fontWeight: FontWeight.w600);
 
   /// Small headline (card titles)
   TextStyle get headlineSmall =>
-      _googleFont(fontSize: 20, fontWeight: FontWeight.w600);
+      _font(fontSize: 20, fontWeight: FontWeight.w600);
 
   // ============ TITLE STYLES ============
 
   /// Large title
-  TextStyle get titleLarge =>
-      _googleFont(fontSize: 18, fontWeight: FontWeight.w500);
+  TextStyle get titleLarge => _font(fontSize: 18, fontWeight: FontWeight.w500);
 
   /// Medium title
-  TextStyle get titleMedium => _googleFont(fontWeight: FontWeight.w500);
+  TextStyle get titleMedium => _font(fontWeight: FontWeight.w500);
 
   /// Small title
-  TextStyle get titleSmall =>
-      _googleFont(fontSize: 14, fontWeight: FontWeight.w500);
+  TextStyle get titleSmall => _font(fontSize: 14, fontWeight: FontWeight.w500);
 
   // ============ BODY STYLES ============
 
   /// Large body text
-  TextStyle get bodyLarge => _googleFont(fontSize: 18);
+  TextStyle get bodyLarge => _font(fontSize: 18);
 
   /// Medium body text (default)
-  TextStyle get bodyMedium => _googleFont();
+  TextStyle get bodyMedium => _font();
 
   /// Small body text
-  TextStyle get bodySmall => _googleFont(fontSize: 14);
+  TextStyle get bodySmall => _font(fontSize: 14);
 
   // ============ LABEL STYLES ============
 
   /// Large label (buttons)
-  TextStyle get labelLarge =>
-      _googleFont(fontSize: 18, fontWeight: FontWeight.w500);
+  TextStyle get labelLarge => _font(fontSize: 18, fontWeight: FontWeight.w500);
 
   /// Medium label
-  TextStyle get labelMedium =>
-      _googleFont(fontSize: 14, fontWeight: FontWeight.w500);
+  TextStyle get labelMedium => _font(fontSize: 14, fontWeight: FontWeight.w500);
 
   /// Small label
-  TextStyle get labelSmall =>
-      _googleFont(fontSize: 12, fontWeight: FontWeight.w500);
+  TextStyle get labelSmall => _font(fontSize: 12, fontWeight: FontWeight.w500);
 
   // ============ SPECIAL STYLES ============
 
   /// Score/stat display text
   TextStyle get scoreDisplay =>
-      _googleFont(fontSize: 48, fontWeight: FontWeight.w600);
+      _font(fontSize: 48, fontWeight: FontWeight.w600);
 
   /// Percentage display text
-  TextStyle get percentage => _googleFont(
+  TextStyle get percentage => _font(
     fontSize: 24,
     fontWeight: FontWeight.w500,
     color: KindlingColours.textSecondary,
   );
 
   /// Secondary/muted text style
-  TextStyle get secondary => _googleFont(
+  TextStyle get secondary => _font(
     fontSize: 18,
     fontWeight: FontWeight.w500,
     color: KindlingColours.textSecondary,
@@ -127,11 +119,8 @@ class KindlingTypography {
   // ============ BUTTON TEXT ============
 
   /// Button text (white for primary buttons)
-  TextStyle get button => _googleFont(
-    fontSize: 18,
-    fontWeight: FontWeight.w500,
-    color: Colors.white,
-  );
+  TextStyle get button =>
+      _font(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white);
 
   // ============ TEXT THEME ============
 
