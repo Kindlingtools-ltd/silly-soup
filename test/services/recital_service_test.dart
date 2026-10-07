@@ -135,16 +135,16 @@ void main() {
 
   group('praise', () {
     test('praise cycles rather than repeating the same line', () {
-      final lines = List.generate(
-        RecitalService.praiseLines.length,
-        RecitalService.praise,
+      final lines = List<String>.generate(
+        testScript.praise.length,
+        testScript.praiseFor,
       );
 
-      expect(lines.toSet().length, RecitalService.praiseLines.length);
+      expect(lines.toSet().length, testScript.praise.length);
     });
 
     test('no praise line ever marks a child wrong', () {
-      for (final line in RecitalService.praiseLines) {
+      for (final line in testScript.praise) {
         expect(
           line.toLowerCase(),
           isNot(

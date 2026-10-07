@@ -91,8 +91,8 @@ jobs:
       - name: Run web tests
         run: bun test test/web
 
-  audio-checklist:
-    name: Audio checklist
+  audio:
+    name: Audio
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -108,16 +108,25 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # Exits non-zero while clips are outstanding, which is the normal state
-      # until the recordings are made. Reported, not enforced — the app falls
-      # back to the device voice and logs what is missing.
-      - name: List outstanding recordings
-        continue-on-error: true
+      # Every clip the chef needs is recorded and committed, so a missing one
+      # is a regression rather than the normal state. Enforced from here on.
+      - name: Check every recording is there
         run: dart run tool/audio_checklist.dart
+
+      - name: Test the audio tools
+        # The cutting and splicing decide what a child hears, so the logic
+        # that makes them is tested. No network, no credentials.
+        run: python3 -m unittest discover -s tool -p 'test_*.py' -v
+
+      - name: Check every recording still plays
+        # Reads each file as an MP3 and holds its length against the bounds it
+        # was recorded to. No API call, no credentials — this only inspects
+        # what is committed.
+        run: python3 tool/generate_audio.py --audit
 
   build-web:
     name: Build & Deploy Web
-    needs: [lint, test, web-tests]
+    needs: [lint, test, web-tests, audio]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -186,7 +195,7 @@ jobs:
 
   build-android:
     name: Build Android
-    needs: [lint, test]
+    needs: [lint, test, audio]
     runs-on: ubuntu-latest
     if: false  # Web first; enable when the app goes to the Play Store.
     steps:
@@ -223,7 +232,7 @@ jobs:
 
   build-ios:
     name: Build iOS
-    needs: [lint, test]
+    needs: [lint, test, audio]
     runs-on: macos-latest
     if: false  # Web first; enable when the app goes to the App Store.
     steps:

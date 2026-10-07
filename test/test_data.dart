@@ -1,4 +1,5 @@
 import 'package:silly_soup/models/models.dart';
+import 'package:silly_soup/services/services.dart';
 
 /// A tiny hand-built bank, so the rules can be tested without the real one.
 PhonemeSound soundS = const PhonemeSound(
@@ -73,3 +74,47 @@ SoundBank testBank = SoundBank(
   sounds: [soundS, soundB, soundA],
   words: [...sWords, ...bWords],
 );
+
+/// The chef's fixed lines, small enough to read in a test.
+const ChefScript testScript = ChefScript(
+  phrases: {
+    ChefScript.mySoundToday: 'My sound today is',
+    ChefScript.watchMeMake: 'Watch me make my silly soup!',
+    ChefScript.nowYouMake: 'Now you make a silly soup!',
+    ChefScript.inGoes: 'In goes',
+    ChefScript.and: 'and',
+    ChefScript.yourSoupHas: 'Your silly soup has',
+    ChefScript.inIt: 'in it!',
+    ChefScript.emptyPan: 'An empty pan! That is the silliest soup of all.',
+  },
+  praise: [
+    'Ooh, what a silly soup!',
+    'What a wonderful wobbly recipe!',
+    'That is the silliest soup I have ever seen!',
+  ],
+);
+
+/// A chef whose every clip is present, so a test can check which recordings a
+/// line is built from rather than which words it falls back to.
+ChefVoice fullyRecordedVoice({
+  ChefScript script = testScript,
+  List<PhonemeSound> sounds = const [],
+  List<SoupWord> words = const [],
+}) {
+  return ChefVoice(
+    script: script,
+    catalogue: ClipCatalogue({
+      for (final key in script.phrases.keys) ChefVoice.phraseClip(key),
+      for (var i = 0; i < script.praise.length; i++) ChefVoice.praiseClip(i),
+      for (final sound in sounds) ...[
+        if (sound.audioAssetPath != null) sound.audioAssetPath!,
+        ChefVoice.actionClip(sound),
+      ],
+      for (final word in words) ...[
+        if (word.audioAssetPath != null) word.audioAssetPath!,
+        ChefVoice.emphasisClip(word),
+      ],
+      SoupSong.audioAssetPath,
+    }),
+  );
+}

@@ -97,17 +97,42 @@ build a nursery is running, and `flutter test` cannot see either of them.
 
 ## Audio
 
-Audio is the most important part of this app. Clips are played from `assets/audio/phonemes` and `assets/audio/words`; anything not recorded yet falls back to the device voice (`en-GB`) and is logged — both in the adult area and by the checklist script:
+Audio is the whole of this app, so all of it is recorded: **189 clips, 1.7 MiB** — the nine pure sounds, all 78 words, all 78 words again with their first sound stretched or bounced, the chef's fixed phrases, the praise lines, the sound actions and the song. The device voice is now a fallback, not the thing a child mostly hears.
+
+**The speech engine cannot say a phoneme.** That is the fact the whole build follows from, and it only shows up if you read the clips back:
+
+| asked for | comes back as |
+|---|---|
+| `sss` | "S S S." |
+| `b b b` | **"Buh buh buh."** |
+| `t t t` with IPA `/t/` | **"Tuh, tuh, tuh."** |
+| `sun` with IPA `/sːːʌn/` | "Son." — length marks ignored |
+| anything with `speed: 0.7` | ignored |
+
+An engine reads text: `sss` is a spelling, so it gets the letter name. "Buh" for /b/ is the one thing Letters and Sounds Phase One says never to model.
+
+So nothing is asked for. The build says an ordinary word, checks the word came out right, and **cuts the sound out of it** — which is what an adult does when they model /s/ by saying "sssun". The /s/ a child hears alone is the same /s/ from the same take of "sun". Holding it on is done a whole number of pitch periods at a time, because splicing a voiced sound out of phase makes the copies cancel where they meet, and that is heard as a warble; measured, it is the difference between 0.03 and 0.68 of loudness wobble.
+
+**And every clip is read back before it is kept.** Acoustic measurements say whether a clip is well formed, not what it says — the pass before this one measured zero-crossing purity and envelope flatness and passed clips that said "Tuh, tuh, tuh". `/v1/stt` is used three ways: a word must read back as its own word, a pure sound must *not* read back as a letter name or an added vowel, and a stretched clip must read back as the same thing the unedited take said (a long enough /n/ really does turn "a nest" into "a nurse").
+
+`docs/AUDIO.md` has the whole method, the numbers, and what could not be established from a terminal.
 
 ```bash
-dart run tool/audio_checklist.dart               # readable checklist
-dart run tool/audio_checklist.dart --missing-only
-dart run tool/audio_checklist.dart --csv > recording-list.csv
+pip install -r tool/requirements.txt
+
+python3 tool/generate_audio.py --dry-run   # what is missing
+python3 tool/generate_audio.py             # record what is missing
+python3 tool/generate_audio.py --listen    # transcribe every committed clip
+python3 tool/generate_audio.py --audit     # check every committed clip plays
+python3 -m unittest discover -s tool -p 'test_*.py'
+dart run tool/audio_checklist.dart         # the list for a human with a microphone
 ```
 
-The checklist tells the person recording exactly what to say for each clip, including which sounds to stretch and which to bounce.
+Clips are committed and never re-recorded unless asked. Not only for cost: the engine is not deterministic, so re-running would quietly swap verified takes for untested ones.
 
-The voice itself is behind `SpeechEngine`, with two implementations. iOS,
+A child's choices cannot be pre-recorded, so the chef builds a sentence from fragments: `phrases/inGoes` + `emphasis/sun` + `emphasis/sock` is "In goes a sssun… a sssock…". `ChefVoice` returns both the clips and the same line in words; if any one clip in a line is missing the whole line is spoken, because half a sentence then silence is worse. `assets/data/chef_script.json` holds the fixed lines, shared by the app and the audio tool so a caption can never disagree with the clip under it.
+
+The fallback voice is behind `SpeechEngine`, with two implementations. iOS,
 Android and desktop use `flutter_tts`; the web talks to the Web Speech API
 directly (`lib/services/speech_engine_web.dart`) for two reasons found while
 fixing the audio on mobile:
@@ -120,22 +145,6 @@ fixing the audio on mobile:
 * A mobile browser will not speak until the page has been touched, and
   refuses silently. The engine needs a `unlock()` it can spend inside a real
   tap — `main.dart` calls it on the first pointer down, above every screen.
-
-Clips can also be synthesised with an x.ai voice model, through the Agent IAP proxy:
-
-```bash
-dart run tool/generate_audio.dart --dry-run   # what would be generated
-dart run tool/generate_audio.dart             # generate only what is missing
-dart run tool/generate_audio.dart --force     # regenerate everything
-```
-
-Generated clips are committed, and the tool skips anything already on disk — 88 files is not something to rebuild on every run. The voice is British (`en-GB`), and each phoneme clip carries an instruction not to add a vowel to the end of the sound, which is the one mistake that would make the app teach the wrong thing.
-
-**79 of the 88 clips are recorded and committed** — all 78 words and the song, generated with x.ai's `eve` voice at `en-GB`.
-
-The nine pure-sound clips are **not** shipped, and the generator skips them unless you pass `--include-phonemes`. The voice reads a bare consonant as its letter name: asking it for `t, t, t` returned a clip byte-identical to one that says `tee, tee, tee`. Teaching "tee" as the sound /t/ is the one mistake this app cannot make, so those nine need a human voice. Until they exist the adult area lists them as missing and the device voice fills in.
-
-> Accent is not settled by the request — x.ai exposes no voices list and its docs do not name accents — so "British" is a judgement made by listening to the output.
 
 ## Project structure
 
@@ -152,7 +161,9 @@ lib/
 
 assets/
 ├── data/sound_bank.json      # The word bank
-├── audio/{phonemes,words,song}/
+├── chef_script.json          # The chef's fixed lines, shared with the audio tool
+├── audio_manifest.json       # Which clips are in the bundle, read before a line is played
+├── audio/{phonemes,words,emphasis,phrases,praise,actions,song}/
 ├── images/                   # Drop-in replacements for the emoji placeholders
 └── google_fonts/             # Poppins, declared as a font family in pubspec.yaml
 
@@ -163,7 +174,15 @@ web/
 ├── _headers                  # Cache-Control for Cloudflare Pages
 └── sw.js                     # Offline cache
 
-tool/audio_checklist.dart     # What still needs recording
+tool/generate_audio.py        # Records every clip, and rejects the bad takes
+tool/audio_specs.py           # Every clip the app needs, and its pronunciation
+tool/audio_build.py           # Cutting a phoneme out of a spoken word
+tool/audio_dsp.py             # Finding the boundary, holding a sound on
+tool/audio_pipeline.py        # Synthesis, transcription, trimming, encoding
+tool/test_audio_tools.py      # Tests for all of the above
+tool/audio_checklist.dart     # The same list, for a person with a microphone
+
+docs/AUDIO.md                 # Why the audio is built the way it is
 ```
 
 ## The word bank
@@ -178,12 +197,15 @@ Words carry the fields the brief asked for:
 | `phoneme` | The **sound** it starts with, not the letter — `cat` and `kite` would both be `k` |
 | `image` | `emoji:🍌`, `asset:items/banana.svg` or `custom:<id>` |
 | `audio` | Clip path relative to `assets/audio/` |
+| `pronunciation` | Received Pronunciation in IPA, between slashes — what makes the recording British |
 | `hasCluster` | True for `spoon`, `star`, `train` — fine to listen to, not expected to be produced |
 | `difficulty` | 1 (shortest and most familiar) to 3 |
 | `notes` | Anything an adult should read first: picture caveats, accent warnings |
 | `initialGrapheme` | Optional. The letters that spell the initial sound, for digraphs like `sh` |
 
-Sounds carry `articulation` (`continuant` or `stop`), which is what decides whether the chef stretches or bounces, `pureSound` (never with an added "uh"), `mouthShape`, `mouthTip` and `action`.
+Sounds carry `articulation` (`continuant` or `stop`), which is what decides whether the chef stretches or bounces, `pureSound` (never with an added "uh"), `pronunciation`, `mouthShape`, `mouthTip` and `action`. They also carry two fields the app never reads but the audio build needs: `manner` (`fricative`, `nasal`, `vowel` or `stop`), which decides where the sound ends inside a word, and `carrierWord`, the word its recording is cut out of.
+
+A word's transcription always starts with the sound it is filed under, which is what lets the chef stretch it: `sun` is `/sʌn/`, so `sssun` is `/sːːʌn/`. A test enforces it.
 
 ## Phonics content rules
 

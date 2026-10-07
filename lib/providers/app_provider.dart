@@ -20,6 +20,8 @@ class AppProvider extends ChangeNotifier {
   final AudioService _audio;
   final AnalyticsService _analytics;
 
+  ChefVoice _chefVoice = const ChefVoice();
+
   bool _isInitialised = false;
   String? _error;
   AppSettings _settings = AppSettings.defaults;
@@ -30,6 +32,11 @@ class AppProvider extends ChangeNotifier {
   SoundBank get bank => _wordBank.bank;
   AudioService get audio => _audio;
   AnalyticsService get analytics => _analytics;
+
+  /// What the chef says, and which recordings say it. Empty until
+  /// [initialise] has read the script and the audio manifest, at which point
+  /// the chef stops depending on the device's own voice.
+  ChefVoice get chefVoice => _chefVoice;
 
   /// Warnings about the merged bank, shown to adults only.
   ValidationResult get bankValidation => _wordBank.validation;
@@ -46,6 +53,10 @@ class AppProvider extends ChangeNotifier {
       _settings = await _storage.getSettings();
       _audio.volume = _settings.volume;
       await _wordBank.load();
+      _chefVoice = ChefVoice(
+        script: _wordBank.script,
+        catalogue: _wordBank.catalogue,
+      );
     } catch (error) {
       _error = 'Could not load the soup ingredients: $error';
       _analytics.logStartupFailed();

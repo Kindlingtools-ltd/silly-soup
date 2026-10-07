@@ -33,7 +33,8 @@ class _MouthScreenState extends State<MouthScreen> {
   }
 
   void _say() {
-    context.read<AppProvider>().audio.playSound(widget.sound);
+    final app = context.read<AppProvider>();
+    app.audio.play(app.chefVoice.pureSound(widget.sound));
     setState(() => _playToken++);
   }
 

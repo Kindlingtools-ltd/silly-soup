@@ -1,0 +1,3 @@
+# The audio tool measures takes and encodes the winner, which needs a real
+# MP3 encoder. Everything else it uses is in the standard library.
+lameenc==1.8.1
