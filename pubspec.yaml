@@ -57,8 +57,13 @@ flutter:
   assets:
     - assets/data/
     - assets/images/
+    - assets/audio/manifest.json
     - assets/audio/phonemes/
     - assets/audio/words/
+    - assets/audio/commentary/
+    - assets/audio/list/
+    - assets/audio/lines/
+    - assets/audio/actions/
     - assets/audio/song/
     # Only the licence: the .ttf files are declared under `fonts:` below, and
     # listing the directory here as well would bundle all three a second time.
