@@ -5,20 +5,31 @@
 // Flutter's own service worker is now a no-op that unregisters itself, so an
 // app that has to keep working when the nursery wifi drops needs its own.
 //
-// Strategy:
-//   * the page itself is network-first, so a new deploy is picked up as soon
-//     as there is a network, and falls back to the cached shell when there
-//     is not;
-//   * everything else is cache-first, because the cache is scoped to one
-//     build and cannot serve a stale asset against a fresh index.html;
-//   * after the app has booted, the page tells the worker which resources it
-//     actually loaded and those are cached too. That is what makes the very
-//     first visit enough — rather than guessing at build time which renderer
-//     this particular browser will pick out of the 48MB of alternatives.
+// Two jobs that pull in opposite directions: start instantly with no network,
+// and never leave a nursery running last term's build. The shape that does
+// both:
+//
+//   * Everything is served cache-first out of a cache named after the build,
+//     the page included. A load is therefore always one whole build. Serving
+//     the page network-first instead — what this file used to do — meant a
+//     reload after a deploy fetched the new index.html while this worker was
+//     still handing out the previous main.dart.wasm from its cache, so the
+//     child got a mixed build, or more often the old one, and only the reload
+//     after that came good.
+//   * A new build is noticed because the browser re-fetches this file from the
+//     network on every navigation, bypassing the HTTP cache. A new BUILD_ID
+//     makes these bytes different, so every deploy produces an update.
+//   * The new worker then WAITS. Taking over on its own would delete the cache
+//     the running app is still reading from, mid-soup. The page decides when
+//     the moment is right and sends `skip-waiting` — see flutter_bootstrap.js.
+//   * Network fetches carry ?v=<build id>, so a caching proxy between the
+//     nursery and Cloudflare cannot answer a request for the new build with
+//     the old bytes. The response is stored under the plain URL, which is what
+//     the app asks for.
 
-// Replaced at build time with the commit SHA. A new build gets a new cache,
-// and the old one is deleted on activate, so index.html and main.dart.wasm
-// can never come from different builds.
+// Replaced at build time with the commit SHA. .github/workflows/build.yml
+// fails the build if this placeholder survives, because an unstamped worker
+// would give every build the same cache and none of the above would happen.
 const BUILD_ID = '__BUILD_ID__';
 const CACHE = `silly-soup-${BUILD_ID}`;
 
@@ -32,15 +43,34 @@ const SHELL = [
   'icons/Icon-512.png',
 ];
 
+/// The same URL, tagged with the build it is being fetched for.
+function versioned(url) {
+  const target = new URL(url, self.location.href);
+  target.searchParams.set('v', BUILD_ID);
+  return target.toString();
+}
+
+/// Fetch from the network under the versioned URL, store under the plain one.
+async function cacheFresh(cache, url) {
+  const response = await fetch(versioned(url));
+  if (!response || response.status !== 200) return;
+  await cache.put(new URL(url, self.location.href).toString(), response);
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
       // One bad URL must not fail the whole install.
       await Promise.all(
-        SHELL.map((url) => cache.add(url).catch(() => undefined)),
+        SHELL.map((url) => cacheFresh(cache, url).catch(() => undefined)),
       );
-      await self.skipWaiting();
+
+      // Nothing is running yet on a first visit, so there is nobody to
+      // interrupt and waiting would only leave the visit uncached. An update,
+      // on the other hand, waits to be invited: `self.registration.active` is
+      // the worker currently serving a child.
+      if (!self.registration.active) await self.skipWaiting();
     })(),
   );
 });
@@ -61,7 +91,17 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('message', (event) => {
   const data = event.data;
-  if (!data || data.type !== 'warm' || !Array.isArray(data.urls)) return;
+  if (!data) return;
+
+  // The page has decided this is a good moment to swap builds.
+  if (data.type === 'skip-waiting') {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
+
+  // What this browser actually downloaded. Which renderer and which bundle
+  // that is depends on the browser, so the page is the only thing that knows.
+  if (data.type !== 'warm' || !Array.isArray(data.urls)) return;
 
   event.waitUntil(
     (async () => {
@@ -76,7 +116,7 @@ self.addEventListener('message', (event) => {
       await Promise.all(
         wanted.map(async (url) => {
           if (await cache.match(url)) return;
-          await cache.add(url).catch(() => undefined);
+          await cacheFresh(cache, url).catch(() => undefined);
         }),
       );
     })(),
@@ -95,22 +135,17 @@ self.addEventListener('fetch', (event) => {
   }
   if (url.origin !== self.location.origin) return;
 
+  // Any route is the same single page, and it must be THIS build's copy of it
+  // — the one whose bundle is in this cache. The network is the fallback, not
+  // the first choice; a newer index.html reaches the child by way of a new
+  // worker, never by being dropped into an older one's cache.
   if (request.mode === 'navigate') {
     event.respondWith(
       (async () => {
-        try {
-          const response = await fetch(request);
-          await put(request, response.clone());
-          return response;
-        } catch (error) {
-          const cache = await caches.open(CACHE);
-          const cached =
-            (await cache.match(request)) ||
-            (await cache.match('index.html')) ||
-            (await cache.match('./'));
-          if (cached) return cached;
-          throw error;
-        }
+        const cache = await caches.open(CACHE);
+        const cached = await cache.match('index.html');
+        if (cached) return cached;
+        return fetch(request);
       })(),
     );
     return;
@@ -121,15 +156,14 @@ self.addEventListener('fetch', (event) => {
       const cache = await caches.open(CACHE);
       const cached = await cache.match(request);
       if (cached) return cached;
-      const response = await fetch(request);
-      await put(request, response.clone());
+
+      const response = await fetch(versioned(request.url));
+      // 200 and not merely ok: a 206 for a seeked audio clip is half a file,
+      // and the Cache API rejects it anyway.
+      if (response && response.status === 200) {
+        await cache.put(request.url, response.clone());
+      }
       return response;
     })(),
   );
 });
-
-async function put(request, response) {
-  if (!response || response.status !== 200 || response.type !== 'basic') return;
-  const cache = await caches.open(CACHE);
-  await cache.put(request, response);
-}

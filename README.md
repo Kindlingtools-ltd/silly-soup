@@ -66,24 +66,34 @@ Worth checking on the device itself:
 1. **Both orientations** — in landscape the pot and the shelf sit side by side; in portrait the pot sits above the shelf. The pantry is on screen either way, with a whole row of ingredients reachable without scrolling.
 2. **Dragging** — drag a picture from the shelf into the pot. The pot grows slightly as the item comes over it.
 3. **Tapping** — tap a picture instead. It should go in just the same. (Switch to "Tap only" in the adult area to check the simpler path.)
-4. **Tap targets** — nothing you need to hit is under 72&nbsp;px.
+4. **Tap targets** — everything a *child* is asked to hit is at least
+   72&nbsp;px: the sound cards and every ingredient in the pantry. The adult
+   chrome — back, the song, stop, watch my mouth, and the toggles in the
+   grown-ups' area — is Flutter's 48&nbsp;px icon button, which clears both
+   platform minimums but is not 72.
 5. **The adult gate** — press and hold the cog in the corner for three seconds. A quick tap must do nothing.
 6. **Mirror mode** — turn it on in the adult area, then open "Watch my mouth". The browser asks for camera permission; the view is live only and there is no capture button.
 7. **Reduced motion** — turn on the device's reduce-motion setting, or the toggle in the adult area, and check the soup stops bobbing.
 8. **Whiteboard mode** — everything scales up and the chef waits for you instead of moving on by itself.
 9. **Offline** — load it once, turn off wi-fi, reload. It still runs. One online visit is enough: the page tells the service worker which files this browser actually downloaded, and those get cached.
 10. **Sound on a phone** — the chef should speak from the first tap. Mobile browsers refuse to make a sound before the page has been touched, so the first touch anywhere is spent silently unlocking the voice.
+11. **Getting a new version** — after a deploy, reload once. The build shown under "Version" in the adult area should become the one that was just deployed; the app reloads itself once to get there.
 
 > Camera access needs a secure context. On a tablet that means HTTPS or `localhost`; a plain `http://<ip>` page will not be offered the camera. Test mirror mode against <https://silly-soup.kindlingtools.com> rather than a local address.
 
 ## Running the checks
 
 ```bash
-flutter test                                    # 178 tests
+flutter test                                    # 206 tests
+bun test test/web                               # the service worker and the update flow
 flutter analyze --fatal-infos --fatal-warnings  # what CI runs
 dart format --output=none --set-exit-if-changed .
 dart run tool/audio_checklist.dart              # what is left to record
 ```
+
+`bun test test/web` runs `web/sw.js` and the update flow from
+`web/flutter_bootstrap.js` in a stand-in for the browser. They decide which
+build a nursery is running, and `flutter test` cannot see either of them.
 
 ## Audio
 
@@ -155,7 +165,14 @@ assets/
 ├── audio_manifest.json       # Which clips are in the bundle, read before a line is played
 ├── audio/{phonemes,words,emphasis,phrases,praise,actions,song}/
 ├── images/                   # Drop-in replacements for the emoji placeholders
-└── google_fonts/             # Poppins, bundled so nothing is fetched at runtime
+└── google_fonts/             # Poppins, declared as a font family in pubspec.yaml
+
+web/
+├── index.html                # Boot splash, engine preloads, PWA meta
+├── flutter_bootstrap.js      # Points the loader at our own engine and fonts
+├── fallback-fonts/           # Vendored Noto fallbacks — see its README
+├── _headers                  # Cache-Control for Cloudflare Pages
+└── sw.js                     # Offline cache
 
 tool/generate_audio.py        # Records every clip, and rejects the bad takes
 tool/audio_specs.py           # Every clip the app needs, and its pronunciation
@@ -206,18 +223,86 @@ A word's transcription always starts with the sound it is filed under, which is 
 - **Stage 2** — adult-authored sounds and words (record a sound, add a word with a photo or emoji, record the word), hide/reorder/edit, live preview, IndexedDB storage, and sound pack export/import. The data model, merge behaviour and pack validation are already in place and tested; what is missing is the UI and the IndexedDB-backed store behind `CustomContentStore`. The "Look, listen and note" observation panel lands here too.
 - **Stage 3** — the extension modes: odd-one-out soup, "What's in the soup?", and rhyming soup. These are **not** part of the original activity and are labelled as extensions in the adult area.
 
-## Offline and the service worker
+## Offline, caching, and getting a new version
 
-Flutter's own service worker is now a no-op that unregisters itself, so the app ships its own — `web/sw.js`, registered from `web/flutter_bootstrap.js`:
+Flutter's own service worker is now a no-op that unregisters itself, so the app ships its own — `web/sw.js`, registered from `web/flutter_bootstrap.js`.
 
-- the page is **network-first**, so a new deploy is picked up as soon as there is a network, and falls back to the cached shell when there is not;
-- everything else is **cache-first**, because the cache name carries the build id and cannot serve a stale asset against a fresh `index.html`;
-- after the app boots, the page posts the list of resources it actually loaded to the worker, which caches them. Guessing that list at build time is not possible — which of the 48&nbsp;MB of renderer variants a browser picks depends on the browser.
+The awkward part is that these are two opposite requirements. The app has to start with no network at all, which means caching hard; and a nursery must never be left running last term's build, which means never trusting a cache. Nothing in `flutter build web` helps: **its output has no content hashes**, so every build publishes the same `main.dart.wasm`, `main.dart.js`, `canvaskit/` and `assets/` URLs as the one before it. There is no filename a browser can use to tell two builds apart.
 
-CI stamps the commit SHA into `sw.js` after the build. Without that step the cache name never changes and a deploy can pair a new `index.html` with an old `main.dart.wasm`.
+So the build id does that job instead:
 
-Verified in Chromium: load, go offline, reload, app still boots.
+- **Everything is cache-first, out of a cache named after the build** — the page included. A load is therefore always one whole build. (The page used to be network-first, which is what made a reload after a deploy fetch the new `index.html` while the worker was still handing out the previous bundle: the child got a mixed build, or more often the old one, and only the reload *after that* came good.)
+- **A new build is noticed** because the browser re-fetches `sw.js` from the network on every navigation, bypassing the HTTP cache. A new build id makes those bytes different, so every deploy produces an update. `web/_headers` pins every response to `max-age=0, must-revalidate` for the same reason — with no hash in the name, anything cached without revalidation is cached until it is evicted.
+- **The new worker waits.** Taking over on its own would delete the cache the running app is still reading from, mid-soup. The page decides when: straight away if the child has not touched anything yet, otherwise when the tablet is put down, otherwise on the next load. Either way one reload by a grown-up lands on the new build, and the swap costs exactly one automatic reload on top of it.
+- **Network fetches carry `?v=<build id>`**, so a caching proxy between the nursery and Cloudflare cannot answer a request for the new build with the bytes it kept for the old one. The response is stored under the plain URL, which is what the app asks for.
+- **After the app boots**, the page posts the list of resources it actually loaded to the worker, which caches them. Guessing that list at build time is not possible — which of the 48&nbsp;MB of renderer variants a browser picks depends on the browser.
 
+CI stamps the commit SHA into `sw.js` after the build, and fails if the stamp did not land: an unstamped worker gives every build one shared cache and never updates. The same SHA is compiled in with `--dart-define=BUILD_ID`, and shown under "Version" in the adult area, so "which build is this tablet on?" is a question a grown-up can answer out loud.
+
+Verified in Chromium against a real build: first visit, offline reload, then a second build deployed underneath and one reload — which lands on the new build, sweeps the old cache, and restarts the app exactly once.
+
+A service worker cannot cache a cross-origin response it is not allowed to
+read, so before the renderer and the emoji fallbacks moved to our own origin
+they were never in that cache at all — "works offline" was resting on the
+browser's HTTP cache happening to still hold 1.4&nbsp;MB from Google. Those
+are same-origin now, so an offline boot is genuinely served by `sw.js`.
+
+## Load performance
+
+Flutter web has a large floor — about 2.1&nbsp;MB compressed before the app's
+own code — so the work here is spending it once and showing something while
+it arrives.
+
+- **The page paints immediately.** `web/index.html` carries an inline SVG boot
+  splash, so the first frame is at ~120&nbsp;ms rather than a blank rectangle
+  until the engine is up. Dart hides it (`lib/services/boot_splash.dart`) only
+  once the sound bank is loaded and the home screen has drawn, which also
+  removed the second, Flutter-drawn spinner that used to flash behind it.
+- **The engine is preloaded.** The browser used to discover `main.dart.wasm`
+  only after fetching, parsing and running `flutter_bootstrap.js`. `index.html`
+  now feature-detects WasmGC inline and preloads the right bundle in the first
+  round trip. `as="fetch"` preloads need `crossorigin` to match the loader's
+  own `fetch()`; without it the browser downloads everything twice.
+- **The engine no longer comes from Google.** The loader fetched the renderer
+  from `www.gstatic.com` and the emoji fallbacks from `fonts.gstatic.com` by
+  default — 1.4 MB from two origins nobody had chosen, which is a different
+  thing from the analytics tag the app does deliberately carry. See
+  [PRIVACY.md](PRIVACY.md). It is a privacy fix first, but it also takes a
+  second DNS lookup and TLS handshake off the critical path and lets `sw.js`
+  cache the renderer.
+- **`google_fonts` is gone.** The package carries a generated table of every
+  family Google publishes so it can look one of them up at runtime. Bundling
+  Poppins and declaring it in `pubspec.yaml` does the same job and took
+  **1.0&nbsp;MB** out of `main.dart.wasm` (3.28&nbsp;MB → 2.24&nbsp;MB
+  uncompressed).
+- **`web/_headers`** is now one blanket `max-age=0, must-revalidate`, as
+  the section above explains. This branch had split it — a week for the
+  engine, a year for the content-addressed fonts — to save a classroom
+  18 conditional requests each morning. The service worker does that job
+  better: a warm visit is served from the Cache API and makes no
+  conditional request at all.
+
+Measured in headless Chromium against a local server that mimics Pages
+(brotli, ETags), throttled to 8&nbsp;Mbit/s with 60&nbsp;ms RTT. Both columns
+are without the analytics tag, which landed separately and adds a small
+async script to each:
+
+| | Before | After |
+|---|---|---|
+| Something on screen | 3.1 s | **0.12 s** |
+| App usable | 3.1 s | 2.6 s |
+| Transferred | 2591 KiB | **2162 KiB** |
+| Of that, unchosen, from Google | 1393 KiB | **0** |
+| Second visit | full revalidation | **0 KiB, 0.7 s** |
+| Offline | renderer not cached | **boots in 0.6 s** |
+
+One thing left on the table: Cloudflare compresses on the fly at a middling
+brotli quality, so `skwasm.wasm` leaves Pages at ~1.49&nbsp;MB where gstatic
+served the same bytes at ~1.20&nbsp;MB precompressed at quality 11. Serving a
+precompressed copy would win roughly 300&nbsp;KiB, but it means storing
+brotli bytes under the plain filename and asserting `Content-Encoding` in
+`_headers`, which breaks any client that does not accept brotli. Not worth it
+for this app; noted in case the floor ever matters more.
 ## Deployment
 
 **Live at <https://silly-soup.kindlingtools.com>.**

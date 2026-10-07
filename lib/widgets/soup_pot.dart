@@ -31,6 +31,20 @@ class SoupPot extends StatefulWidget {
   /// Grapheme shown on the front of the pot in Phase Two mode.
   final String? letter;
 
+  /// The band on the broth the ingredients sit in, as fractions of the pot's
+  /// width. Shared with [_PotContents] so the cluster is measured against the
+  /// same box it is drawn in.
+  ///
+  /// These are the broth itself, not a guess. `_PotPainter` draws it as an
+  /// oval from `0.12` to `0.34` of a canvas that is `0.9` of this width tall
+  /// — so `0.108` to `0.306` here — spanning `0.14` to `0.86` across. The box
+  /// below sits inside that. It used to run to `0.39`, which is the dark side
+  /// of the pan, and an ingredient that reached the bottom of it was drawn on
+  /// the outside of the pot.
+  static const double contentsTop = 0.11;
+  static const double contentsWidth = 0.62;
+  static const double contentsHeight = 0.20;
+
   @override
   State<SoupPot> createState() => _SoupPotState();
 }
@@ -89,10 +103,10 @@ class _SoupPotState extends State<SoupPot> with SingleTickerProviderStateMixin {
                 // up, so the ingredients have to be visible, not tucked
                 // behind the rim.
                 Positioned(
-                  top: widget.size * 0.09,
+                  top: widget.size * SoupPot.contentsTop,
                   child: SizedBox(
-                    width: widget.size * 0.62,
-                    height: widget.size * 0.30,
+                    width: widget.size * SoupPot.contentsWidth,
+                    height: widget.size * SoupPot.contentsHeight,
                     child: _PotContents(
                       contents: widget.contents,
                       controller: _controller,
@@ -162,22 +176,38 @@ class _PotContents extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        return Wrap(
-          alignment: WrapAlignment.center,
-          runAlignment: WrapAlignment.center,
-          spacing: 2,
-          children: [
-            for (var i = 0; i < contents.length; i++)
-              Transform.translate(
-                offset: reducedMotion
-                    ? Offset.zero
-                    : Offset(
-                        0,
-                        sin((controller.value * 2 * pi) + i) * itemSize * 0.12,
-                      ),
-                child: WordPicture(word: contents[i], size: itemSize),
-              ),
-          ],
+        // One row, scaled to the broth it floats on.
+        //
+        // This was a Wrap inside a fixed box. An emoji is drawn wider than
+        // its font size, so three items measured about 0.70 of the pot
+        // against the 0.62 they were given, and the third wrapped onto a
+        // second run that landed on the pan below the broth — an ingredient
+        // stuck to the outside of the pot, in the one picture the whole
+        // activity is about. Three is what the chef models every time.
+        //
+        // A row cannot wrap, so nothing leaves the soup by that route, and
+        // scaling it means a full pantry shrinks rather than escapes.
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < contents.length; i++) ...[
+                if (i > 0) const SizedBox(width: 2),
+                Transform.translate(
+                  offset: reducedMotion
+                      ? Offset.zero
+                      : Offset(
+                          0,
+                          sin((controller.value * 2 * pi) + i) *
+                              itemSize *
+                              0.12,
+                        ),
+                  child: WordPicture(word: contents[i], size: itemSize),
+                ),
+              ],
+            ],
+          ),
         );
       },
     );

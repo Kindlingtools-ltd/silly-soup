@@ -28,6 +28,20 @@ class SoundCard extends StatelessWidget {
   final double? width;
   final VoidCallback? onTap;
 
+  /// How tall a card is at [scale], so a caller can work out whether a set
+  /// of them fits the space it has before it draws them.
+  ///
+  /// Never below the minimum tap target, however far the card has had to
+  /// shrink to fit the screen it is on — which also means shrinking stops
+  /// helping below [shrinkFloor].
+  static double heightFor(double scale) => math.max(
+    SoupMetrics.minTapTarget,
+    SoupMetrics.minTapTarget * 1.6 * scale,
+  );
+
+  /// The scale at which [heightFor] hits the tap-target floor.
+  static const double shrinkFloor = 1 / 1.6;
+
   @override
   Widget build(BuildContext context) {
     final card = Container(
@@ -37,12 +51,7 @@ class SoundCard extends StatelessWidget {
           SoupMetrics.minTapTarget,
           SoupMetrics.minTapTarget * 2 * scale,
         ),
-        // Never below the minimum tap target, however far the card has had
-        // to shrink to fit the screen it is on.
-        minHeight: math.max(
-          SoupMetrics.minTapTarget,
-          SoupMetrics.minTapTarget * 1.6 * scale,
-        ),
+        minHeight: heightFor(scale),
       ),
       padding: EdgeInsets.symmetric(
         horizontal: 24 * scale,
